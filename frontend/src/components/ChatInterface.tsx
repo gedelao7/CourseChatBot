@@ -10,14 +10,21 @@ interface Message {
   fullContent?: string;
 }
 
+interface TranscriptStats {
+  count: number;
+  algoliaConnected: boolean;
+}
+
 const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     { type: 'bot', content: 'Hello! I\'m your Cardiopulmonary Course Assistant. Ask me anything about the course materials.' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [format, setFormat] = useState<string | null>(null);
   const [maxLength, setMaxLength] = useState<number | null>(null);
+  const [transcriptStats, setTranscriptStats] = useState<TranscriptStats | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingSpeed = 15; // milliseconds per character
 
@@ -28,6 +35,20 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Fetch transcript stats on component mount
+  useEffect(() => {
+    const fetchTranscriptStats = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/transcript-stats`);
+        setTranscriptStats(response.data);
+      } catch (error) {
+        console.error('Error fetching transcript stats:', error);
+      }
+    };
+
+    fetchTranscriptStats();
+  }, []);
 
   // Typing animation effect
   useEffect(() => {
@@ -95,14 +116,58 @@ const ChatInterface: React.FC = () => {
         }
       ]);
 
-      // Log the interaction for analytics
-      logQuestion(userMessage, true);
+      // Update transcript stats if needed
+      if (response.data.transcriptsAvailable !== undefined && 
+          (!transcriptStats || transcriptStats.count === 0)) {
+        setTranscriptStats(prev => ({
+          ...prev || { algoliaConnected: false },
+          count: response.data.transcriptsAvailable ? 1 : 0
+        }));
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       setIsLoading(false);
       setMessages(prev => [...prev, { 
         type: 'bot', 
         content: 'Sorry, I encountered an error. Please try again.'
+      }]);
+    }
+  };
+
+  const handleProcessTranscripts = async () => {
+    setIsProcessing(true);
+    
+    try {
+      await axios.post(`${API_URL}/api/process-course`);
+      
+      setMessages(prev => [...prev, { 
+        type: 'bot', 
+        content: 'Processing course materials. This may take a few minutes. I\'ll be able to answer course-specific questions once processing is complete.'
+      }]);
+      
+      // Fetch updated stats after a delay to allow processing
+      setTimeout(async () => {
+        try {
+          const response = await axios.get(`${API_URL}/api/transcript-stats`);
+          setTranscriptStats(response.data);
+          
+          if (response.data.count > 0) {
+            setMessages(prev => [...prev, { 
+              type: 'bot', 
+              content: `Successfully processed ${response.data.count} transcript files! You can now ask me questions about the course content.`
+            }]);
+          }
+        } catch (error) {
+          console.error('Error fetching updated transcript stats:', error);
+        }
+        setIsProcessing(false);
+      }, 5000);
+    } catch (error) {
+      console.error('Error processing transcripts:', error);
+      setIsProcessing(false);
+      setMessages(prev => [...prev, { 
+        type: 'bot', 
+        content: 'Sorry, I encountered an error while processing the course materials. Please make sure the transcript files are in the backend/data/course directory.'
       }]);
     }
   };
@@ -114,19 +179,21 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  const logQuestion = async (question: string, wasHelpful: boolean) => {
-    try {
-      await axios.post(`${API_URL}/api/log-question`, {
-        question,
-        wasHelpful
-      });
-    } catch (error) {
-      console.error('Error logging question:', error);
-    }
-  };
-
   return (
     <div className="chat-container">
+      {transcriptStats && transcriptStats.count === 0 && (
+        <div className="transcript-notice">
+          <p>No course materials loaded yet. Answers will be general knowledge until transcripts are processed.</p>
+          <button 
+            className="process-button" 
+            onClick={handleProcessTranscripts}
+            disabled={isProcessing}
+          >
+            {isProcessing ? 'Processing...' : 'Process Transcripts'}
+          </button>
+        </div>
+      )}
+      
       <div className="chat-messages">
         {messages.map((message, index) => (
           <div key={index} className={`message ${message.type}`}>
@@ -198,6 +265,15 @@ const ChatInterface: React.FC = () => {
           ➤
         </button>
       </div>
+
+      {transcriptStats && (
+        <div className="transcript-stats">
+          <span>
+            {transcriptStats.count} transcript files loaded
+            {transcriptStats.algoliaConnected ? ' (Algolia connected)' : ''}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

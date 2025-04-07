@@ -4,6 +4,8 @@ import './App.css';
 import ChatInterface from './components/ChatInterface';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
+import FlashcardGenerator from './components/FlashcardGenerator';
+import QuizGenerator from './components/QuizGenerator';
 
 // We'll add the Flashcards and Quiz components later
 
@@ -28,8 +30,8 @@ function App() {
           <main className={`main-content ${isSidebarOpen ? 'sidebar-open' : ''}`}>
             <Routes>
               <Route path="/" element={<ChatInterface />} />
-              <Route path="/flashcards" element={<div>Flashcards Coming Soon</div>} />
-              <Route path="/quiz" element={<div>Quiz Coming Soon</div>} />
+              <Route path="/flashcards" element={<FlashcardGenerator />} />
+              <Route path="/quiz" element={<QuizGenerator />} />
             </Routes>
           </main>
         </div>
