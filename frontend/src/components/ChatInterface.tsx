@@ -8,6 +8,7 @@ interface Message {
   content: string;
   isTyping?: boolean;
   fullContent?: string;
+  isOffTopic?: boolean;
 }
 
 interface TranscriptStats {
@@ -105,6 +106,9 @@ const ChatInterface: React.FC = () => {
       // Set loading to false
       setIsLoading(false);
 
+      // Check if it's an off-topic question
+      const isOffTopic = response.data.offtopic === true;
+
       // Add bot response with typing animation
       setMessages(prev => [
         ...prev, 
@@ -112,7 +116,8 @@ const ChatInterface: React.FC = () => {
           type: 'bot', 
           content: '', 
           fullContent: response.data.response,
-          isTyping: true
+          isTyping: true,
+          isOffTopic: isOffTopic
         }
       ]);
 
@@ -196,13 +201,18 @@ const ChatInterface: React.FC = () => {
       
       <div className="chat-messages">
         {messages.map((message, index) => (
-          <div key={index} className={`message ${message.type}`}>
+          <div key={index} className={`message ${message.type} ${message.isOffTopic ? 'off-topic' : ''}`}>
             <div className="message-content">
               {message.content}
               {message.isTyping && (
                 <span className="typing-cursor">|</span>
               )}
             </div>
+            {message.isOffTopic && (
+              <div className="off-topic-indicator">
+                This question is outside the scope of the course materials
+              </div>
+            )}
           </div>
         ))}
         {isLoading && (
