@@ -6,18 +6,20 @@ const API_URL = 'http://localhost:5000';
 interface Message {
   type: 'user' | 'bot';
   content: string;
-  sourceFound?: boolean;
+  isTyping?: boolean;
+  fullContent?: string;
 }
 
 const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { type: 'bot', content: 'Hello! I\'m your Cardiopulmonary Course Assistant. Ask me anything about the course materials.', sourceFound: false }
+    { type: 'bot', content: 'Hello! I\'m your Cardiopulmonary Course Assistant. Ask me anything about the course materials.' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [format, setFormat] = useState<string | null>(null);
   const [maxLength, setMaxLength] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingSpeed = 15; // milliseconds per character
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,6 +27,39 @@ const ChatInterface: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
+  }, [messages]);
+
+  // Typing animation effect
+  useEffect(() => {
+    const currentMessages = [...messages];
+    const typingMessageIndex = currentMessages.findIndex(
+      message => message.isTyping && message.fullContent
+    );
+
+    if (typingMessageIndex !== -1) {
+      const typingMessage = currentMessages[typingMessageIndex];
+      if (typingMessage.content.length < (typingMessage.fullContent?.length || 0)) {
+        const timer = setTimeout(() => {
+          const nextChar = typingMessage.fullContent?.charAt(typingMessage.content.length) || '';
+          
+          currentMessages[typingMessageIndex] = {
+            ...typingMessage,
+            content: typingMessage.content + nextChar
+          };
+          
+          setMessages([...currentMessages]);
+        }, typingSpeed);
+        
+        return () => clearTimeout(timer);
+      } else {
+        // Typing is complete
+        currentMessages[typingMessageIndex] = {
+          ...typingMessage,
+          isTyping: false
+        };
+        setMessages([...currentMessages]);
+      }
+    }
   }, [messages]);
 
   const handleSendMessage = async () => {
@@ -46,24 +81,29 @@ const ChatInterface: React.FC = () => {
         maxLength: maxLength
       });
 
-      // Add bot response to chat
-      setMessages(prev => [...prev, { 
-        type: 'bot', 
-        content: response.data.response,
-        sourceFound: response.data.sourceFound
-      }]);
+      // Set loading to false
+      setIsLoading(false);
+
+      // Add bot response with typing animation
+      setMessages(prev => [
+        ...prev, 
+        { 
+          type: 'bot', 
+          content: '', 
+          fullContent: response.data.response,
+          isTyping: true
+        }
+      ]);
 
       // Log the interaction for analytics
       logQuestion(userMessage, true);
     } catch (error) {
       console.error('Error sending message:', error);
+      setIsLoading(false);
       setMessages(prev => [...prev, { 
         type: 'bot', 
-        content: 'Sorry, I encountered an error. Please try again.', 
-        sourceFound: false 
+        content: 'Sorry, I encountered an error. Please try again.'
       }]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -92,12 +132,8 @@ const ChatInterface: React.FC = () => {
           <div key={index} className={`message ${message.type}`}>
             <div className="message-content">
               {message.content}
-              {message.type === 'bot' && (
-                <div className="source-indicator">
-                  {message.sourceFound 
-                    ? '(Response based on course materials)' 
-                    : '(General knowledge response)'}
-                </div>
+              {message.isTyping && (
+                <span className="typing-cursor">|</span>
               )}
             </div>
           </div>
