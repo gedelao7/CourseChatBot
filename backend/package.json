@@ -1,0 +1,30 @@
+{
+  "name": "coursechatbot",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gedelao7/CourseChatBot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gedelao7/CourseChatBot/issues"
+  },
+  "homepage": "https://github.com/gedelao7/CourseChatBot#readme",
+  "description": "",
+  "dependencies": {
+    "algoliasearch": "^5.23.3",
+    "axios": "^1.8.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "extract-zip": "^2.0.1",
+    "openai": "^4.92.1"
+  }
+}
