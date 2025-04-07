@@ -6,6 +6,10 @@ const algoliasearch = require('algoliasearch');
 let algoliaClient = null;
 let algoliaIndex = null;
 
+// Local transcript storage
+let localTranscripts = [];
+let isInitialized = false;
+
 // Initialize Algolia with your credentials
 function initAlgolia(appId, apiKey, indexName) {
   try {
@@ -40,12 +44,21 @@ async function processTranscript(filePath, moduleInfo) {
       createdAt: new Date().toISOString()
     };
     
+    // Store locally always
+    localTranscripts.push(document);
+    isInitialized = true;
+    
     // If Algolia is initialized, index the document
     if (algoliaIndex) {
-      await algoliaIndex.saveObject(document);
-      console.log(`Indexed transcript: ${fileName}`);
+      try {
+        await algoliaIndex.saveObject(document);
+        console.log(`Indexed transcript in Algolia: ${fileName}`);
+      } catch (error) {
+        console.error(`Error indexing in Algolia: ${error.message}`);
+      }
     }
     
+    console.log(`Processed transcript: ${fileName}`);
     return document;
   } catch (error) {
     console.error(`Error processing transcript ${filePath}:`, error);
@@ -87,24 +100,76 @@ async function processTranscriptDirectory(dirPath, moduleInfo = {}) {
   }
 }
 
-// Search for relevant content using Algolia
+// Search for relevant content
 async function searchTranscripts(query, options = {}) {
-  if (!algoliaIndex) {
-    throw new Error('Algolia not initialized');
+  // First try Algolia if available
+  if (algoliaIndex) {
+    try {
+      const searchResults = await algoliaIndex.search(query, options);
+      return searchResults;
+    } catch (error) {
+      console.error('Error searching in Algolia:', error);
+      // Fall back to local search
+    }
   }
   
-  try {
-    const searchResults = await algoliaIndex.search(query, options);
-    return searchResults;
-  } catch (error) {
-    console.error('Error searching transcripts:', error);
-    throw error;
+  // Local search if Algolia not available or failed
+  if (!isInitialized || localTranscripts.length === 0) {
+    throw new Error('No transcripts have been processed yet');
+  }
+  
+  // Simple keyword-based search
+  const keywords = query.toLowerCase().split(/\s+/);
+  
+  // Score documents based on keyword matches
+  const scoredDocs = localTranscripts.map(doc => {
+    const content = doc.content.toLowerCase();
+    const title = doc.title.toLowerCase();
+    
+    // Calculate score based on keyword frequency
+    let score = 0;
+    keywords.forEach(keyword => {
+      // Title matches are weighted more heavily
+      const titleMatches = (title.match(new RegExp(keyword, 'g')) || []).length;
+      const contentMatches = (content.match(new RegExp(keyword, 'g')) || []).length;
+      
+      score += titleMatches * 3 + contentMatches;
+    });
+    
+    return { ...doc, score };
+  });
+  
+  // Sort by score and return top results
+  const results = scoredDocs
+    .filter(doc => doc.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);  // Return top 5 results
+  
+  return {
+    hits: results,
+    nbHits: results.length,
+    query
+  };
+}
+
+// Load transcripts that already exist in the data directory
+async function loadExistingTranscripts() {
+  const dataDir = path.join(__dirname, '../data/course');
+  
+  if (fs.existsSync(dataDir)) {
+    console.log('Loading existing transcripts from data directory...');
+    await processTranscriptDirectory(dataDir);
+    console.log(`Loaded ${localTranscripts.length} transcripts from disk`);
   }
 }
+
+// Call this on server startup
+loadExistingTranscripts();
 
 module.exports = {
   initAlgolia,
   processTranscript,
   processTranscriptDirectory,
-  searchTranscripts
+  searchTranscripts,
+  getTranscriptsCount: () => localTranscripts.length
 }; 
