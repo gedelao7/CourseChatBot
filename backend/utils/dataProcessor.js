@@ -118,32 +118,108 @@ async function searchTranscripts(query, options = {}) {
     throw new Error('No transcripts have been processed yet');
   }
   
-  // Simple keyword-based search
-  const keywords = query.toLowerCase().split(/\s+/);
+  console.log(`Searching local transcripts for: "${query}"`);
   
-  // Score documents based on keyword matches
+  // More advanced keyword-based search with stemming and noise word removal
+  // Remove common words that don't add search value
+  const noiseWords = ['a', 'an', 'the', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 
+                     'in', 'on', 'at', 'to', 'for', 'with', 'by', 'about', 'like', 
+                     'through', 'over', 'before', 'between', 'after', 'since', 'without', 
+                     'under', 'within', 'along', 'following', 'across', 'behind', 
+                     'beyond', 'plus', 'except', 'but', 'up', 'out', 'around', 'down', 
+                     'off', 'above', 'near', 'i', 'you', 'he', 'she', 'we', 'they',
+                     'what', 'which', 'who', 'whom', 'whose', 'why', 'where', 'when',
+                     'how', 'have', 'has', 'had', 'do', 'does', 'did', 'can', 'could',
+                     'will', 'would', 'shall', 'should', 'may', 'might', 'must', 'of'];
+  
+  // Extract and clean keywords from the query
+  const cleanQuery = query.toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .split(/\s+/) // Split by whitespace
+    .filter(word => word.length > 1 && !noiseWords.includes(word)); // Remove noise words and single characters
+  
+  // If no meaningful search terms, return empty results
+  if (cleanQuery.length === 0) {
+    return {
+      hits: [],
+      nbHits: 0,
+      query
+    };
+  }
+  
+  console.log(`Searching for keywords: ${cleanQuery.join(', ')}`);
+  
+  // Create regex patterns for each keyword for more precise matching
+  const keywordPatterns = cleanQuery.map(keyword => new RegExp(`\\b${keyword}\\w*\\b`, 'gi'));
+  
+  // Score documents based on keyword matches with more sophisticated scoring
   const scoredDocs = localTranscripts.map(doc => {
     const content = doc.content.toLowerCase();
-    const title = doc.title.toLowerCase();
+    const title = doc.title ? doc.title.toLowerCase() : '';
+    const module = doc.module ? doc.module.toLowerCase() : '';
     
-    // Calculate score based on keyword frequency
+    // Calculate score based on various factors
     let score = 0;
-    keywords.forEach(keyword => {
-      // Title matches are weighted more heavily
-      const titleMatches = (title.match(new RegExp(keyword, 'g')) || []).length;
-      const contentMatches = (content.match(new RegExp(keyword, 'g')) || []).length;
+    let matchDetails = [];
+    
+    // Check for keyword matches
+    keywordPatterns.forEach((pattern, idx) => {
+      const keyword = cleanQuery[idx];
       
-      score += titleMatches * 3 + contentMatches;
+      // Title matches (weighted heavily)
+      const titleMatches = (title.match(pattern) || []).length;
+      if (titleMatches > 0) {
+        score += titleMatches * 10;
+        matchDetails.push(`Title match: ${keyword} (${titleMatches}×)`);
+      }
+      
+      // Module matches (weighted moderately)
+      const moduleMatches = (module.match(pattern) || []).length;
+      if (moduleMatches > 0) {
+        score += moduleMatches * 5;
+        matchDetails.push(`Module match: ${keyword} (${moduleMatches}×)`);
+      }
+      
+      // Content matches (based on frequency)
+      const contentMatches = (content.match(pattern) || []).length;
+      if (contentMatches > 0) {
+        // Higher score for multiple matches
+        score += Math.min(contentMatches, 20); // Cap at 20 to prevent bias toward very long documents
+        matchDetails.push(`Content match: ${keyword} (${contentMatches}×)`);
+        
+        // Bonus for consecutive keywords appearing close together (phrase matching)
+        if (idx > 0 && content.includes(`${cleanQuery[idx-1]} ${keyword}`)) {
+          score += 5;
+          matchDetails.push(`Phrase bonus: "${cleanQuery[idx-1]} ${keyword}"`);
+        }
+      }
     });
     
-    return { ...doc, score };
+    // Bonus score if all keywords are found
+    const allKeywordsFound = cleanQuery.every(keyword => 
+      content.includes(keyword) || title.includes(keyword) || module.includes(keyword)
+    );
+    
+    if (allKeywordsFound) {
+      score += 15;
+      matchDetails.push('All keywords found bonus');
+    }
+    
+    // Include document details and debugging info
+    return { 
+      ...doc, 
+      score,
+      matchDetails 
+    };
   });
   
-  // Sort by score and return top results
+  // Filter to only documents with matches, sort by score, and limit results
   const results = scoredDocs
     .filter(doc => doc.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 5);  // Return top 5 results
+    .slice(0, 7);  // Return top 7 results
+  
+  console.log(`Found ${results.length} matching documents. Top score: ${results.length > 0 ? results[0].score : 0}`);
   
   return {
     hits: results,

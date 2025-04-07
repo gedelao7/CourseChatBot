@@ -41,65 +41,77 @@ app.post('/api/chat', async (req, res) => {
     // Search for relevant content in the transcripts
     let relevantContent = '';
     let sourceFound = false;
+    let relevanceScore = 0;
     
     try {
       const searchResults = await dataProcessor.searchTranscripts(message);
       if (searchResults && searchResults.hits && searchResults.hits.length > 0) {
-        // Extract relevant content from top 3 hits
-        relevantContent = searchResults.hits.slice(0, 3).map(hit => {
-          return `From ${hit.module || 'Unknown module'} - ${hit.title || 'Unknown document'}: ${hit.content.substring(0, 500)}...`;
+        // Extract relevant content from top results
+        relevantContent = searchResults.hits.slice(0, 5).map(hit => {
+          // Add the score to calculate total relevance
+          relevanceScore += hit.score || 0;
+          return `From ${hit.module || 'Unknown module'} - ${hit.title || 'Unknown document'}: ${hit.content.substring(0, 800)}...`;
         }).join('\n\n');
         sourceFound = true;
       }
     } catch (error) {
-      console.log('Error searching transcripts (proceeding with general response):', error.message);
+      console.log('Error searching transcripts:', error.message);
     }
 
     // Count of available transcripts
     const transcriptCount = dataProcessor.getTranscriptsCount();
-
-    // Prepare system message based on whether we have relevant content
-    let systemMessage;
-    if (relevantContent) {
-      systemMessage = `You are a helpful course assistant specifically for a Cardiopulmonary Practice course. 
-      You MUST provide informed answers based ONLY on the following course material. 
-      DO NOT make up information that isn't in the provided context.
-      If the provided context doesn't answer the question directly, say that you don't have enough information from the course materials to answer confidently.
-      
-      ${relevantContent}`;
-    } else if (transcriptCount > 0) {
-      systemMessage = `You are a helpful assistant for a Cardiopulmonary Practice course. 
-      I couldn't find specific information about "${message}" in the course materials.
-      Please provide a very brief general response, but make it clear that your answer is not based on the specific course content.
-      Suggest that the student refers to their course materials for accurate information.`;
-    } else {
-      systemMessage = `You are a helpful assistant for a Cardiopulmonary Practice course. 
-      No course materials have been loaded yet, so I cannot provide course-specific information.
-      Please provide a general response but make it clear that course materials need to be loaded for accurate answers.`;
+    
+    if (transcriptCount === 0) {
+      return res.json({
+        response: "I don't have any course materials loaded yet. Please load the course materials first so I can provide accurate responses based on your specific course content.",
+        sourceFound: false,
+        transcriptsAvailable: false
+      });
     }
+
+    // If no relevant content found or relevance score is too low, decline to answer
+    if (!sourceFound || relevanceScore < 3) {
+      return res.json({
+        response: "I can only answer questions related to the course materials. This question appears to be outside the scope of the course content I have access to. Please ask a question related to the course materials.",
+        sourceFound: false,
+        transcriptsAvailable: true,
+        offtopic: true
+      });
+    }
+
+    // Prepare system message with strong guardrails
+    const systemMessage = `You are a course assistant specifically for a Cardiopulmonary Practice course.
+    You must ONLY provide answers based on the following course material excerpts.
+    DO NOT make up information or rely on external knowledge.
+    If the provided excerpts don't contain sufficient information to answer the question fully, acknowledge the limitations clearly.
+    Stay focused on the specific content in these excerpts, even if you know other information on the topic.
+    
+    Here are the relevant course materials:
+    ${relevantContent}`;
 
     // Add formatting instructions if provided
+    let finalSystemMessage = systemMessage;
     if (format) {
-      systemMessage += `\n\nFormat your response as ${format}.`;
+      finalSystemMessage += `\n\nFormat your response as ${format}.`;
     }
     if (maxLength) {
-      systemMessage += `\n\nLimit your response to approximately ${maxLength} sentences.`;
+      finalSystemMessage += `\n\nLimit your response to approximately ${maxLength} sentences.`;
     }
 
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
-        { role: "system", content: systemMessage },
+        { role: "system", content: finalSystemMessage },
         { role: "user", content: message }
       ],
       max_tokens: 800,
-      temperature: 0.7
+      temperature: 0.5
     });
 
     res.json({ 
       response: completion.choices[0].message.content,
-      sourceFound: sourceFound,
-      transcriptsAvailable: transcriptCount > 0
+      sourceFound: true,
+      transcriptsAvailable: true
     });
     
     // Log the interaction for analytics
