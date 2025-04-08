@@ -1,10 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 const algoliasearch = require('algoliasearch');
+const axios = require('axios');
+const { OpenAI } = require('openai');
 
 // Configure Algolia client
 let algoliaClient = null;
 let algoliaIndex = null;
+
+// Initialize OpenAI with the API key
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // Local transcript storage
 let localTranscripts = [];
@@ -242,10 +249,104 @@ async function loadExistingTranscripts() {
 // Call this on server startup
 loadExistingTranscripts();
 
+// Add function to find external resources based on topic
+async function findExternalResources(topic, resourceType = { websites: true, videos: true }, count = 3) {
+  console.log(`Finding external resources for topic: "${topic}" with types:`, resourceType);
+  
+  // First, check if the topic is found in our transcripts
+  let topicFoundInTranscripts = false;
+  try {
+    const relevantContent = await searchTranscripts(topic);
+    console.log(`Search results for "${topic}":`, {
+      hitCount: relevantContent?.hits?.length || 0,
+      firstHitScore: relevantContent?.hits?.[0]?.score || 0
+    });
+    
+    if (relevantContent && relevantContent.hits && relevantContent.hits.length > 0) {
+      topicFoundInTranscripts = true;
+    }
+    
+    if (!topicFoundInTranscripts) {
+      console.log(`Topic "${topic}" not found in transcripts`);
+      return { links: [], sourceFound: false };
+    }
+
+    // Format what types of resources we want
+    let resourceTypeText = '';
+    if (resourceType.websites && resourceType.videos) {
+      resourceTypeText = 'educational websites and YouTube videos';
+    } else if (resourceType.websites) {
+      resourceTypeText = 'educational websites';
+    } else if (resourceType.videos) {
+      resourceTypeText = 'YouTube videos';
+    }
+    console.log(`Requesting ${resourceTypeText} for "${topic}"`);
+
+    // Construct a prompt for the AI
+    const prompt = `I'm looking for ${count} reliable ${resourceTypeText} about "${topic}" in the context of cardiopulmonary physiology education. 
+    The content in our course materials mentions this topic: ${relevantContent.hits[0]?.content?.substring(0, 300) || topic}
+    
+    Return the results as a valid JSON array with this exact structure (no markdown, ONLY valid JSON):
+    [
+      {
+        "title": "Resource title",
+        "url": "https://full-url-to-resource",
+        "type": "website or youtube",
+        "description": "A brief 1-2 sentence description of the resource and why it's relevant"
+      }
+    ]`;
+
+    // Get completions from OpenAI using the globally initialized instance
+    console.log(`Sending request to OpenAI for "${topic}" resources`);
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+      max_tokens: 1500,
+    });
+    console.log('OpenAI response received');
+
+    // Parse the result and extract links
+    const response = completion.choices[0].message.content.trim();
+    console.log(`OpenAI response length: ${response.length} characters`);
+    
+    try {
+      // Find JSON array in the response
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : response;
+      const links = JSON.parse(jsonStr);
+      console.log(`Successfully parsed ${links.length} links from OpenAI response`);
+      
+      // Validate and clean the links
+      const validatedLinks = links.map(link => ({
+        title: link.title || 'Resource',
+        url: link.url,
+        type: link.type?.toLowerCase() === 'youtube' ? 'youtube' : 'website',
+        description: link.description || ''
+      })).filter(link => link.url && link.url.startsWith('http'));
+      
+      console.log(`Returning ${validatedLinks.length} validated links`);
+      return { 
+        links: validatedLinks.slice(0, count), 
+        sourceFound: true 
+      };
+    } catch (parseError) {
+      console.error('Error parsing links from OpenAI response:', parseError);
+      console.log('Raw response:', response);
+      return { links: [], sourceFound: true };
+    }
+  } catch (error) {
+    console.error('Error finding external resources:', error);
+    return { links: [], sourceFound: false };
+  }
+}
+
 module.exports = {
   initAlgolia,
   processTranscript,
   processTranscriptDirectory,
   searchTranscripts,
-  getTranscriptsCount: () => localTranscripts.length
+  getTranscriptsCount: () => localTranscripts.length,
+  findExternalResources,
+  loadExistingTranscripts
 }; 
