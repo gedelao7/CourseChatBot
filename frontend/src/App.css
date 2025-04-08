@@ -226,12 +226,14 @@ body {
 /* Restored options styling with modifications */
 .chat-options {
   display: flex;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border-top: 1px solid var(--border-color);
   overflow-x: auto;
   white-space: nowrap;
   scrollbar-width: thin;
   -ms-overflow-style: none;
+  justify-content: center;
+  gap: 8px;
 }
 
 .chat-options::-webkit-scrollbar {
@@ -246,23 +248,70 @@ body {
 .option-button {
   background-color: white;
   border: 1px solid var(--border-color);
-  border-radius: 15px;
-  padding: 4px 8px;
-  font-size: 11px;
+  border-radius: 16px;
+  padding: 5px 12px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
-  margin-right: 4px;
+  margin-right: 0;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color);
+  font-weight: 500;
 }
 
 .option-button:hover {
   background-color: var(--secondary-color);
+  border-color: var(--primary-light);
+  transform: translateY(-1px);
 }
 
 .option-button.active {
   background-color: var(--primary-color);
   color: white;
   border-color: var(--primary-color);
+}
+
+/* Style each option button specifically */
+.option-button:nth-child(1) {
+  background-color: #f0f7ff;
+  border-color: #c8e1ff;
+  color: #0366d6;
+}
+
+.option-button:nth-child(1):hover,
+.option-button:nth-child(1).active {
+  background-color: #0366d6;
+  border-color: #0366d6;
+  color: white;
+}
+
+.option-button:nth-child(2) {
+  background-color: #f8f0ff;
+  border-color: #e6d8ff;
+  color: #6f42c1;
+}
+
+.option-button:nth-child(2):hover,
+.option-button:nth-child(2).active {
+  background-color: #6f42c1;
+  border-color: #6f42c1;
+  color: white;
+}
+
+.option-button:nth-child(3) {
+  background-color: #f0fff4;
+  border-color: #d8ffe6;
+  color: #2ea44f;
+}
+
+.option-button:nth-child(3):hover,
+.option-button:nth-child(3).active {
+  background-color: #2ea44f;
+  border-color: #2ea44f;
+  color: white;
 }
 
 .message {

@@ -723,6 +723,33 @@ const ChatInterface: React.FC = () => {
     setIsExpanded(!isExpanded);
   };
 
+  // Add handleOptionClick function for better interaction
+  const handleFlashcardClick = () => {
+    const newText = "Create flashcards about ";
+    setInput(newText);
+    // Focus on input and set cursor at the end
+    setTimeout(() => {
+      const inputElement = document.querySelector('.chat-input') as HTMLTextAreaElement;
+      if (inputElement) {
+        inputElement.focus();
+        inputElement.setSelectionRange(newText.length, newText.length);
+      }
+    }, 0);
+  };
+
+  const handleQuizClick = () => {
+    const newText = "Generate a quiz about ";
+    setInput(newText);
+    // Focus on input and set cursor at the end
+    setTimeout(() => {
+      const inputElement = document.querySelector('.chat-input') as HTMLTextAreaElement;
+      if (inputElement) {
+        inputElement.focus();
+        inputElement.setSelectionRange(newText.length, newText.length);
+      }
+    }, 0);
+  };
+
   return (
     <div className={`chat-container ${isExpanded ? 'expanded' : ''}`}>
       <div className="chat-header">
@@ -787,28 +814,22 @@ const ChatInterface: React.FC = () => {
       
       <div className="chat-options">
         <button 
-          className={`option-button ${format === 'bullet points' ? 'active' : ''}`}
-          onClick={() => setFormat(format === 'bullet points' ? null : 'bullet points')}
+          className={`option-button ${isFlashcardRequest(input) ? 'active' : ''}`}
+          onClick={handleFlashcardClick}
         >
-          Bullet Points
+          Flashcards
         </button>
         <button 
-          className={`option-button ${format === 'paragraph' ? 'active' : ''}`}
-          onClick={() => setFormat(format === 'paragraph' ? null : 'paragraph')}
+          className={`option-button ${isQuizRequest(input) ? 'active' : ''}`}
+          onClick={handleQuizClick}
         >
-          Paragraph
+          Quiz
         </button>
         <button 
           className={`option-button ${maxLength === 1 ? 'active' : ''}`}
           onClick={() => setMaxLength(maxLength === 1 ? null : 1)}
         >
           One Sentence
-        </button>
-        <button 
-          className={`option-button ${maxLength === 3 ? 'active' : ''}`}
-          onClick={() => setMaxLength(maxLength === 3 ? null : 3)}
-        >
-          Brief (3 Sentences)
         </button>
       </div>
       
