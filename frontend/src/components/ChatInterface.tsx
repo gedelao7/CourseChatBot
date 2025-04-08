@@ -53,7 +53,7 @@ interface TranscriptStats {
 
 const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { type: 'bot', content: 'Hello! I\'m your Cardiopulmonary Course Assistant. Ask me anything about the course materials. You can also ask me to create flashcards or generate a quiz on any course topic.' }
+    { type: 'bot', content: 'Hello! I\'m your Course Assistant. Ask me anything about the course materials. You can also ask me to create flashcards or generate a quiz on any course topic.' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -985,7 +985,7 @@ const ChatInterface: React.FC = () => {
   return (
     <div className={`chat-container ${isExpanded ? 'expanded' : ''}`}>
       <div className="chat-header">
-        <div className="chat-title">Cardiopulmonary Course Assistant</div>
+        <div className="chat-title">Course Assistant</div>
         <div className="chat-controls">
           <button 
             className="control-button toggle-size-button" 
