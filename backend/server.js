@@ -164,17 +164,35 @@ app.post('/api/generate-flashcards', async (req, res) => {
     try {
       const searchResults = await dataProcessor.searchTranscripts(topic);
       if (searchResults && searchResults.hits && searchResults.hits.length > 0) {
-        relevantContent = searchResults.hits.slice(0, 3).map(hit => hit.content.substring(0, 1000)).join('\n\n');
-        sourceFound = true;
+        // Only consider it source found if the relevance score is significant
+        const totalScore = searchResults.hits.reduce((sum, hit) => sum + (hit.score || 0), 0);
+        sourceFound = totalScore >= 10; // Set a minimum threshold for relevance
+        
+        if (sourceFound) {
+          relevantContent = searchResults.hits.slice(0, 3).map(hit => hit.content.substring(0, 1000)).join('\n\n');
+        }
       }
     } catch (error) {
       console.log('Error searching transcripts:', error.message);
     }
 
+    // Check if we found relevant content in the transcripts
+    if (!sourceFound) {
+      return res.json({ 
+        flashcards: [], 
+        sourceFound: false,
+        message: 'No relevant information found in course materials' 
+      });
+    }
+
     const systemMessage = `You are a flashcard generator for a Cardiopulmonary Practice course. 
     Generate ${count || 5} high-quality flashcards based on this topic: "${topic}".
-    ${relevantContent ? 'Use the following content from course materials:' + relevantContent : 'Note that I could not find specific information on this topic in the course materials, so create general flashcards but indicate they are not based on course content.'}
+    Use ONLY the following content from course materials:
     
+    ${relevantContent}
+    
+    DO NOT make up information that isn't in the provided context.
+    If the provided context doesn't cover the topic adequately, make fewer flashcards or focus on what IS available.
     Format each flashcard as a JSON object with "front" and "back" properties.
     Return an array of these objects.`;
 
@@ -182,7 +200,7 @@ app.post('/api/generate-flashcards', async (req, res) => {
       model: "gpt-3.5-turbo",
       messages: [
         { role: "system", content: systemMessage },
-        { role: "user", content: `Generate ${count || 5} flashcards about "${topic}" from the course materials.` }
+        { role: "user", content: `Generate ${count || 5} flashcards about "${topic}" from the provided course materials.` }
       ],
       max_tokens: 1000,
       temperature: 0.7
@@ -206,6 +224,7 @@ app.post('/api/generate-flashcards', async (req, res) => {
       return res.json({ 
         flashcards: [], 
         rawResponse: responseText,
+        sourceFound: sourceFound,
         error: 'Could not parse flashcards' 
       });
     }
@@ -236,16 +255,35 @@ app.post('/api/generate-quiz', async (req, res) => {
     try {
       const searchResults = await dataProcessor.searchTranscripts(topic);
       if (searchResults && searchResults.hits && searchResults.hits.length > 0) {
-        relevantContent = searchResults.hits.slice(0, 3).map(hit => hit.content.substring(0, 1000)).join('\n\n');
-        sourceFound = true;
+        // Only consider it source found if the relevance score is significant
+        const totalScore = searchResults.hits.reduce((sum, hit) => sum + (hit.score || 0), 0);
+        sourceFound = totalScore >= 10; // Set a minimum threshold for relevance
+        
+        if (sourceFound) {
+          relevantContent = searchResults.hits.slice(0, 3).map(hit => hit.content.substring(0, 1000)).join('\n\n');
+        }
       }
     } catch (error) {
       console.log('Error searching transcripts:', error.message);
     }
 
+    // Check if we found relevant content in the transcripts
+    if (!sourceFound) {
+      return res.json({ 
+        questions: [], 
+        sourceFound: false,
+        message: 'No relevant information found in course materials' 
+      });
+    }
+
     const systemMessage = `You are a quiz generator for a Cardiopulmonary Practice course. 
     Generate ${count || 5} multiple-choice questions at ${difficulty || 'medium'} difficulty level based on this topic: "${topic}".
-    ${relevantContent ? 'Use the following content from course materials:' + relevantContent : 'Note that I could not find specific information on this topic in the course materials, so create general questions but indicate they are not based on course content.'}
+    Use ONLY the following content from course materials:
+    
+    ${relevantContent}
+    
+    DO NOT make up information that isn't in the provided context.
+    If the provided context doesn't cover the topic adequately, make fewer questions or focus on what IS available.
     
     Format each question as a JSON object with:
     - "question": the question text
@@ -259,7 +297,7 @@ app.post('/api/generate-quiz', async (req, res) => {
       model: "gpt-3.5-turbo",
       messages: [
         { role: "system", content: systemMessage },
-        { role: "user", content: `Generate ${count || 5} ${difficulty || 'medium'} difficulty quiz questions about "${topic}" from the course materials.` }
+        { role: "user", content: `Generate ${count || 5} ${difficulty || 'medium'} difficulty quiz questions about "${topic}" from the provided course materials.` }
       ],
       max_tokens: 1500,
       temperature: 0.7
@@ -283,6 +321,7 @@ app.post('/api/generate-quiz', async (req, res) => {
       return res.json({ 
         questions: [], 
         rawResponse: responseText,
+        sourceFound: sourceFound,
         error: 'Could not parse quiz questions' 
       });
     }

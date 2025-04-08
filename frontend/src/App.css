@@ -27,6 +27,7 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background-color: #f5f5f5;
 }
 
 .content-wrapper {
@@ -119,15 +120,15 @@ body {
 
 /* Chat Interface */
 .chat-container {
-  max-width: 800px;
-  margin: 0 auto;
-  background-color: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--header-height) - 40px);
+  height: calc(100vh - 20px);
+  max-width: 1000px;
+  margin: 0 auto;
+  background-color: white;
+  border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .chat-messages {
@@ -670,4 +671,135 @@ body {
   margin-top: 8px;
   font-style: italic;
   padding: 4px 0;
+}
+
+/* Added styles for integrated flashcards and quizzes */
+.chat-flashcards {
+  margin: 15px 0;
+  max-width: 100%;
+  width: 75%;
+  align-self: left;
+}
+
+.chat-flashcards .flashcard {
+  margin: 15px 0;
+  width: 100%;
+  height: 200px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chat-quiz {
+  margin: 15px 0;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  width: 75%;
+  align-self: center;
+}
+
+.chat-quiz .question-container {
+  margin: 10px 0;
+  background-color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.chat-quiz .question-text {
+  font-size: 1.1rem;
+  margin-bottom: 15px;
+  line-height: 1.4;
+  color: var(--text-color);
+}
+
+.chat-quiz .explanation {
+  padding: 12px;
+  background-color: rgba(245, 250, 255, 0.8);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-top: 12px;
+  border-left: 3px solid var(--primary-color);
+}
+
+.chat-quiz .question-navigation {
+  margin-top: 15px;
+}
+
+.chat-quiz .question-navigation button {
+  font-size: 0.9rem;
+  padding: 8px 15px;
+}
+
+.chat-quiz .score-circle {
+  width: 110px;
+  height: 110px;
+  margin: 15px auto;
+}
+
+.chat-flashcards .card-navigation {
+  margin-top: 10px;
+}
+
+.chat-flashcards .card-navigation button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.chat-flashcards .card-navigation button:hover:not(:disabled) {
+  background-color: var(--primary-dark);
+}
+
+/* Message content that contains flashcards or quizzes */
+.message.bot .message-content {
+  background-color: var(--secondary-color);
+  width: 100%;
+}
+
+/* Adjust message container for flashcards/quizzes */
+.message.bot {
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 75%;
+}
+
+/* Make flashcard text more visible */
+.card-content {
+  font-size: 1.1rem;
+  text-align: center;
+  padding: 15px;
+  overflow-y: auto;
+  max-height: 160px;
+  width: 100%;
+}
+
+/* Improve quiz options appearance */
+.chat-quiz .options-list {
+  margin-bottom: 15px;
+}
+
+.chat-quiz .option {
+  padding: 10px 15px;
+  font-size: 0.95rem;
+}
+
+/* Message styling adjustments */
+.message.has-special-content {
+  margin-bottom: 25px;
+  width: 100%;
+}
+
+.message-content.special-content {
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--primary-dark);
+  background-color: rgba(245, 247, 251, 0.8);
+  border-bottom: 2px solid var(--primary-light);
+  border-radius: 12px 12px 0 0;
 }
