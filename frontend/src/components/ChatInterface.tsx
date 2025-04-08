@@ -25,8 +25,15 @@ interface Message {
   isOffTopic?: boolean;
   isFlashcards?: boolean;
   isQuiz?: boolean;
+  isExternalLinks?: boolean;
   flashcards?: Flashcard[];
   currentCardIndex?: number;
+  externalLinks?: {
+    title: string;
+    url: string;
+    type: 'website' | 'youtube';
+    description?: string;
+  }[];
   quizData?: {
     questions: QuizQuestion[];
     topic: string;
@@ -51,7 +58,6 @@ const ChatInterface: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [format, setFormat] = useState<string | null>(null);
-  const [maxLength, setMaxLength] = useState<number | null>(null);
   const [transcriptStats, setTranscriptStats] = useState<TranscriptStats | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingSpeed = 15; // milliseconds per character
@@ -132,6 +138,21 @@ const ChatInterface: React.FC = () => {
       lowercaseMsg.includes('create a test') ||
       lowercaseMsg.includes('generate questions') ||
       (lowercaseMsg.includes('question') && lowercaseMsg.includes('make'))
+    );
+  };
+
+  // Check if message is a request for external links
+  const isExternalLinkRequest = (message: string): boolean => {
+    const lowercaseMsg = message.toLowerCase();
+    return (
+      lowercaseMsg.includes('link') || 
+      lowercaseMsg.includes('resource') || 
+      lowercaseMsg.includes('website') || 
+      lowercaseMsg.includes('video') || 
+      lowercaseMsg.includes('youtube') || 
+      lowercaseMsg.includes('find me') || 
+      (lowercaseMsg.includes('show') && lowercaseMsg.includes('me')) ||
+      (lowercaseMsg.includes('search') && (lowercaseMsg.includes('for') || lowercaseMsg.includes('about')))
     );
   };
 
@@ -334,6 +355,99 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  // Handle external link request
+  const handleExternalLinkRequest = async (userMessage: string) => {
+    const topic = extractTopic(userMessage);
+    if (!topic) {
+      setMessages(prev => [...prev, { 
+        type: 'bot', 
+        content: 'What topic would you like to find external resources for? Please specify a course-related topic.'
+      }]);
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      // First, check if topic is relevant to course materials
+      const relevanceCheck = await axios.post(`${API_URL}/api/chat`, {
+        message: `Is ${topic} covered in the course materials?`,
+        format: null,
+        maxLength: null
+      });
+
+      // Check if the topic is off-topic based on the response
+      const isOffTopic = relevanceCheck.data.offtopic === true;
+
+      if (isOffTopic) {
+        setIsLoading(false);
+        setMessages(prev => [...prev, { 
+          type: 'bot', 
+          content: `I can only provide external resources for topics covered in the course materials. "${topic}" doesn't appear to be covered in the transcripts I have. Please ask for resources related to the course content.`,
+          isOffTopic: true
+        }]);
+        return;
+      }
+
+      // Detect what type of resources are being requested
+      const wantsVideos = userMessage.toLowerCase().includes('video') || 
+                          userMessage.toLowerCase().includes('youtube') || 
+                          userMessage.toLowerCase().includes('watch');
+      
+      const wantsWebsites = userMessage.toLowerCase().includes('website') || 
+                           userMessage.toLowerCase().includes('article') || 
+                           userMessage.toLowerCase().includes('page') ||
+                           userMessage.toLowerCase().includes('link');
+      
+      // Default to both if not specified
+      const resourceType = {
+        videos: wantsVideos || (!wantsVideos && !wantsWebsites),
+        websites: wantsWebsites || (!wantsVideos && !wantsWebsites)
+      };
+      
+      // Number of resources to find (default: 3)
+      const count = userMessage.match(/(\d+)\s+(?:links|resources|videos|websites)/i) 
+        ? parseInt(userMessage.match(/(\d+)\s+(?:links|resources|videos|websites)/i)![1]) 
+        : 3;
+      
+      const response = await axios.post(`${API_URL}/api/find-external-resources`, {
+        topic,
+        count,
+        resourceType
+      });
+
+      setIsLoading(false);
+
+      if (response.data.links && response.data.links.length > 0 && response.data.sourceFound) {
+        setMessages(prev => [...prev, { 
+          type: 'bot', 
+          content: `Here are some external resources about "${topic}" from reliable sources:`,
+          isExternalLinks: true,
+          externalLinks: response.data.links
+        }]);
+      } else if (response.data.links && response.data.links.length > 0) {
+        // We have links but no specific source found in transcripts
+        setMessages(prev => [...prev, { 
+          type: 'bot', 
+          content: `I couldn't find specific information about "${topic}" in the course materials. Please try a different course-related topic.`,
+          isOffTopic: true
+        }]);
+      } else {
+        setMessages(prev => [...prev, { 
+          type: 'bot', 
+          content: `I couldn't find external resources for "${topic}". Please try a more specific course-related topic.`
+        }]);
+      }
+    } catch (error) {
+      console.error('Error finding external resources:', error);
+      setIsLoading(false);
+      setMessages(prev => [...prev, { 
+        type: 'bot', 
+        content: 'Sorry, I encountered an error finding external resources. Please try again.'
+      }]);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!input.trim()) return;
 
@@ -354,6 +468,12 @@ const ChatInterface: React.FC = () => {
       return;
     }
     
+    // Check if it's an external link request
+    if (isExternalLinkRequest(userMessage)) {
+      await handleExternalLinkRequest(userMessage);
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -361,7 +481,7 @@ const ChatInterface: React.FC = () => {
       const response = await axios.post(`${API_URL}/api/chat`, {
         message: userMessage,
         format: format,
-        maxLength: maxLength
+        maxLength: null
       });
 
       // Set loading to false
@@ -750,6 +870,40 @@ const ChatInterface: React.FC = () => {
     }, 0);
   };
 
+  // External links button handler
+  const handleExternalLinksClick = () => {
+    const newText = "Find resources about ";
+    setInput(newText);
+    // Focus on input and set cursor at the end
+    setTimeout(() => {
+      const inputElement = document.querySelector('.chat-input') as HTMLTextAreaElement;
+      if (inputElement) {
+        inputElement.focus();
+        inputElement.setSelectionRange(newText.length, newText.length);
+      }
+    }, 0);
+  };
+
+  // Render external links
+  const renderExternalLinks = (message: Message) => {
+    if (!message.externalLinks || message.externalLinks.length === 0) return null;
+    
+    return (
+      <div className="external-links-container">
+        {message.externalLinks.map((link, index) => (
+          <div key={index} className={`external-link-item ${link.type}`}>
+            <a href={link.url} target="_blank" rel="noopener noreferrer" className="link-title">
+              {link.title}
+              {link.type === 'youtube' && <span className="link-icon youtube-icon">📺</span>}
+              {link.type === 'website' && <span className="link-icon website-icon">🔗</span>}
+            </a>
+            {link.description && <p className="link-description">{link.description}</p>}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className={`chat-container ${isExpanded ? 'expanded' : ''}`}>
       <div className="chat-header">
@@ -794,6 +948,7 @@ const ChatInterface: React.FC = () => {
             )}
             {message.isFlashcards && renderFlashcards(message, index)}
             {message.isQuiz && renderQuiz(message, index)}
+            {message.isExternalLinks && renderExternalLinks(message)}
           </div>
         ))}
         {isLoading && (
@@ -826,10 +981,10 @@ const ChatInterface: React.FC = () => {
           Quiz
         </button>
         <button 
-          className={`option-button ${maxLength === 1 ? 'active' : ''}`}
-          onClick={() => setMaxLength(maxLength === 1 ? null : 1)}
+          className={`option-button ${isExternalLinkRequest(input) ? 'active' : ''}`}
+          onClick={handleExternalLinksClick}
         >
-          One Sentence
+          Resources
         </button>
       </div>
       

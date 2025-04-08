@@ -302,15 +302,15 @@ body {
 }
 
 .option-button:nth-child(3) {
-  background-color: #f0fff4;
-  border-color: #d8ffe6;
-  color: #2ea44f;
+  background-color: #fff0f0;
+  border-color: #ffd6d6;
+  color: #e91e63;
 }
 
 .option-button:nth-child(3):hover,
 .option-button:nth-child(3).active {
-  background-color: #2ea44f;
-  border-color: #2ea44f;
+  background-color: #e91e63;
+  border-color: #e91e63;
   color: white;
 }
 
@@ -1028,4 +1028,71 @@ body {
 
 .chat-container:not(.expanded) .message .message-content {
   max-width: 100%;
+}
+
+/* External Links Styling */
+.external-links-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.external-link-item {
+  border-radius: 8px;
+  padding: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  background-color: rgba(var(--primary-rgb), 0.05);
+  border-left: 3px solid var(--primary-color);
+}
+
+.external-link-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.external-link-item.youtube {
+  background-color: rgba(255, 0, 0, 0.05);
+  border-left-color: rgba(255, 0, 0, 0.7);
+}
+
+.external-link-item.website {
+  background-color: rgba(var(--primary-rgb), 0.05);
+  border-left-color: var(--primary-color);
+}
+
+.link-title {
+  display: flex;
+  align-items: center;
+  color: var(--text-color);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.link-title:hover {
+  text-decoration: underline;
+}
+
+.link-description {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 4px 0 0 0;
+  line-height: 1.4;
+}
+
+.link-icon {
+  margin-left: 6px;
+  font-size: 16px;
+}
+
+.youtube-icon {
+  color: #FF0000;
+}
+
+.website-icon {
+  color: var(--primary-color);
 }
