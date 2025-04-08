@@ -159,8 +159,36 @@ async function searchTranscripts(query, options = {}) {
   // Create regex patterns for each keyword for more precise matching
   const keywordPatterns = cleanQuery.map(keyword => new RegExp(`\\b${keyword}\\w*\\b`, 'gi'));
   
+  // Check if we have filters to apply (like for lecture references)
+  let filteredDocs = [...localTranscripts];
+  
+  if (options.filters) {
+    console.log(`Applying custom filters: ${options.filters}`);
+    
+    // Parse the filters (simple implementation, can be expanded)
+    const filterParts = options.filters.split(' OR ').map(part => part.trim());
+    
+    // Apply each filter
+    filteredDocs = filteredDocs.filter(doc => {
+      return filterParts.some(filterPart => {
+        const [field, valuePattern] = filterPart.split(':');
+        
+        // Handle wildcard patterns
+        if (valuePattern.includes('*')) {
+          const regex = new RegExp(valuePattern.replace(/\*/g, '.*'), 'i');
+          return regex.test(doc[field] || '');
+        }
+        
+        // Exact match
+        return (doc[field] || '').toLowerCase().includes(valuePattern.toLowerCase());
+      });
+    });
+    
+    console.log(`After filtering, ${filteredDocs.length} documents match the criteria`);
+  }
+  
   // Score documents based on keyword matches with more sophisticated scoring
-  const scoredDocs = localTranscripts.map(doc => {
+  const scoredDocs = filteredDocs.map(doc => {
     const content = doc.content.toLowerCase();
     const title = doc.title ? doc.title.toLowerCase() : '';
     const module = doc.module ? doc.module.toLowerCase() : '';
@@ -203,34 +231,43 @@ async function searchTranscripts(query, options = {}) {
     });
     
     // Bonus score if all keywords are found
-    const allKeywordsFound = cleanQuery.every(keyword => 
-      content.includes(keyword) || title.includes(keyword) || module.includes(keyword)
+    const allKeywordsFound = keywordPatterns.every(pattern => 
+      (content.match(pattern) || []).length > 0 || 
+      (title.match(pattern) || []).length > 0 || 
+      (module.match(pattern) || []).length > 0
     );
     
     if (allKeywordsFound) {
-      score += 15;
+      score += 10;
       matchDetails.push('All keywords found bonus');
     }
     
-    // Include document details and debugging info
-    return { 
-      ...doc, 
+    // Penalty for very short documents (which might be less informative)
+    if (content.length < 200) {
+      score -= 5;
+      matchDetails.push('Short document penalty');
+    }
+    
+    // Return the scored document
+    return {
+      ...doc,
       score,
-      matchDetails 
+      matchDetails
     };
   });
   
-  // Filter to only documents with matches, sort by score, and limit results
-  const results = scoredDocs
-    .filter(doc => doc.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 7);  // Return top 7 results
+  // Filter out documents with zero or negative scores
+  const relevantDocs = scoredDocs.filter(doc => doc.score > 0);
   
-  console.log(`Found ${results.length} matching documents. Top score: ${results.length > 0 ? results[0].score : 0}`);
+  // Sort by score (highest first)
+  relevantDocs.sort((a, b) => b.score - a.score);
   
+  console.log(`Found ${relevantDocs.length} matching documents. Top score: ${relevantDocs.length > 0 ? relevantDocs[0].score : 0}`);
+  
+  // Return results in a format similar to Algolia for consistency
   return {
-    hits: results,
-    nbHits: results.length,
+    hits: relevantDocs,
+    nbHits: relevantDocs.length,
     query
   };
 }
@@ -341,6 +378,52 @@ async function findExternalResources(topic, resourceType = { websites: true, vid
   }
 }
 
+// Extract frequent topics from transcripts
+async function getFrequentTopics(count = 5) {
+  if (!isInitialized || localTranscripts.length === 0) {
+    return { topics: [] };
+  }
+  
+  try {
+    // Extract text from all transcripts
+    const allContent = localTranscripts.map(doc => doc.content).join(' ');
+    
+    // Use OpenAI to identify key topics
+    const prompt = `Below is content from an educational course on cardiopulmonary practice. 
+    Extract the ${count} most important topics or concepts mentioned in this content.
+    Return ONLY a valid JSON array of strings with no explanation, like: ["topic1", "topic2", ...]
+    
+    Content excerpt:
+    ${allContent.substring(0, 5000)}`;
+    
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 200,
+    });
+    
+    const response = completion.choices[0].message.content.trim();
+    
+    // Extract JSON array
+    try {
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : response;
+      const topics = JSON.parse(jsonStr);
+      
+      return {
+        topics: topics.slice(0, count)
+      };
+    } catch (error) {
+      console.error('Error parsing topics:', error);
+      return { topics: [] };
+    }
+  } catch (error) {
+    console.error('Error extracting topics:', error);
+    return { topics: [] };
+  }
+}
+
 module.exports = {
   initAlgolia,
   processTranscript,
@@ -348,5 +431,6 @@ module.exports = {
   searchTranscripts,
   getTranscriptsCount: () => localTranscripts.length,
   findExternalResources,
-  loadExistingTranscripts
+  loadExistingTranscripts,
+  getFrequentTopics
 }; 

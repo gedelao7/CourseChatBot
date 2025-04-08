@@ -32,21 +32,49 @@ if (process.env.ALGOLIA_APP_ID && process.env.ALGOLIA_API_KEY) {
 // Routes
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, format, maxLength } = req.body;
+    const { message, format, maxLength, isLectureReference } = req.body;
     
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
+    // Log the question for analytics
+    logQuestion(message, true);
+    
     // Search for relevant content in the transcripts
     let relevantContent = '';
     let sourceFound = false;
     let relevanceScore = 0;
+    let topMatches = [];
     
     try {
-      const searchResults = await dataProcessor.searchTranscripts(message);
+      // If this is a lecture reference, refine the search
+      let searchParams = {};
+      
+      if (isLectureReference) {
+        console.log('Detected lecture reference question');
+        const lectureMatch = message.match(/lecture\s+(\d+|[a-z]+)/i);
+        if (lectureMatch && lectureMatch[1]) {
+          const lectureNum = lectureMatch[1];
+          // Custom filter for lecture references - we'll pass this to searchTranscripts
+          searchParams = {
+            filters: `title:*lecture*${lectureNum}* OR module:*lecture*${lectureNum}*`
+          };
+          console.log(`Searching for lecture reference: ${lectureNum}`);
+        }
+      }
+      
+      const searchResults = await dataProcessor.searchTranscripts(message, searchParams);
       if (searchResults && searchResults.hits && searchResults.hits.length > 0) {
         // Extract relevant content from top results
+        topMatches = searchResults.hits.slice(0, 5).map(hit => {
+          return {
+            title: hit.title || 'Unknown document',
+            module: hit.module || 'Unknown module',
+            score: hit.score || 0
+          };
+        });
+        
         relevantContent = searchResults.hits.slice(0, 5).map(hit => {
           // Add the score to calculate total relevance
           relevanceScore += hit.score || 0;
@@ -69,13 +97,30 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    // If no relevant content found or relevance score is too low, decline to answer
-    if (!sourceFound || relevanceScore < 3) {
+    // More nuanced off-topic detection
+    const isLowRelevance = !sourceFound || relevanceScore < 3;
+    let suggestedTopics = [];
+    
+    if (isLowRelevance) {
+      // Try to detect course-related terminology to suggest related topics
+      try {
+        // Get most frequent topics from available transcripts
+        const courseTopicResults = await dataProcessor.getFrequentTopics(5);
+        suggestedTopics = courseTopicResults.topics || [];
+      } catch (error) {
+        console.error('Error getting suggested topics:', error);
+      }
+      
+      const suggestionsText = suggestedTopics.length > 0 
+        ? `You might want to ask about: ${suggestedTopics.join(', ')}.` 
+        : 'Try asking about specific lectures, concepts, or topics covered in the course.';
+        
       return res.json({
-        response: "I can only answer questions related to the course materials. This question appears to be outside the scope of the course content I have access to. Please ask a question related to the course materials.",
+        response: `I can only answer questions related to the course materials. This question appears to be outside the scope of the course content I have access to. ${suggestionsText}`,
         sourceFound: false,
         transcriptsAvailable: true,
-        offtopic: true
+        offtopic: true,
+        suggestedTopics: suggestedTopics
       });
     }
 
@@ -87,7 +132,10 @@ app.post('/api/chat', async (req, res) => {
     Stay focused on the specific content in these excerpts, even if you know other information on the topic.
     
     Here are the relevant course materials:
-    ${relevantContent}`;
+    ${relevantContent}
+    
+    If asked about specific lecture numbers or sections, identify which module and lecture you're drawing information from.
+    Cite the specific lecture or document when possible.${isLectureReference ? '\n\nThis question is specifically about a lecture, so make sure to mention which lecture(s) you are referencing in your answer.' : ''}`;
 
     // Add formatting instructions if provided
     let finalSystemMessage = systemMessage;
@@ -111,11 +159,10 @@ app.post('/api/chat', async (req, res) => {
     res.json({ 
       response: completion.choices[0].message.content,
       sourceFound: true,
-      transcriptsAvailable: true
+      transcriptsAvailable: true,
+      topMatches: topMatches,
+      isLectureReference: isLectureReference
     });
-    
-    // Log the interaction for analytics
-    logQuestion(message, true);
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Something went wrong' });
@@ -401,12 +448,50 @@ app.get('/api/transcript-stats', (req, res) => {
 });
 
 // Start the server
+const validateConfig = () => {
+  const requiredEnvVars = ['OPENAI_API_KEY'];
+  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
+    console.error('⚠️ Missing required environment variables:', missingVars.join(', '));
+    console.error('Please set these variables in your .env file');
+    return false;
+  }
+  
+  // Check if OPENAI_API_KEY has been masked or modified
+  const apiKeyPattern = /^(sk-|OPENAI-|fake)/;
+  if (!apiKeyPattern.test(process.env.OPENAI_API_KEY)) {
+    console.error('⚠️ OPENAI_API_KEY appears to be invalid');
+    return false;
+  }
+  
+  // Warn about optional environment variables
+  const optionalEnvVars = ['ALGOLIA_APP_ID', 'ALGOLIA_API_KEY', 'ALGOLIA_INDEX_NAME'];
+  const missingOptionalVars = optionalEnvVars.filter(varName => !process.env[varName]);
+  
+  if (missingOptionalVars.length > 0) {
+    console.warn('⚠️ Missing optional environment variables:', missingOptionalVars.join(', '));
+    console.warn('Algolia search will not be available.');
+  }
+  
+  return true;
+};
+
+// Initialized security checks
+let configValid = validateConfig();
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  
+  if (!configValid) {
+    console.warn('⚠️ Server started with configuration warnings. Some features may not work correctly.');
+  }
+  
   console.log('API endpoints:');
   console.log('- /api/chat - Chat with the course assistant');
   console.log('- /api/process-course - Process course materials from local folder');
   console.log('- /api/generate-flashcards - Generate flashcards on a topic');
   console.log('- /api/generate-quiz - Generate quiz questions on a topic');
+  console.log('- /api/find-external-resources - Find relevant external resources');
   console.log('- /api/transcript-stats - Get stats about available transcripts');
 }); 

@@ -26,6 +26,7 @@ interface Message {
   isFlashcards?: boolean;
   isQuiz?: boolean;
   isExternalLinks?: boolean;
+  suggestedTopics?: string[];
   flashcards?: Flashcard[];
   currentCardIndex?: number;
   externalLinks?: {
@@ -156,9 +157,25 @@ const ChatInterface: React.FC = () => {
     );
   };
 
-  // Extract topic from message
+  // Add function to detect if a question references specific lecture numbers
+  const isLectureReferenceQuestion = (message: string): boolean => {
+    const lowercaseMsg = message.toLowerCase();
+    return (
+      lowercaseMsg.includes('lecture') && 
+      (lowercaseMsg.match(/\blecture\s+\d+\b/) !== null || 
+       lowercaseMsg.match(/\blectures?\s+[a-z]+\b/) !== null)
+    );
+  };
+
+  // Enhanced topic extraction from message
   const extractTopic = (message: string): string => {
     const lowercaseMsg = message.toLowerCase();
+    
+    // Special case for direct questions about lectures
+    const lectureMatch = lowercaseMsg.match(/lecture\s+(\d+|[a-z]+)/i);
+    if (lectureMatch && lectureMatch[1]) {
+      return `lecture ${lectureMatch[1]}`;
+    }
     
     // Try to find "about [topic]" pattern
     const aboutMatch = lowercaseMsg.match(/(?:about|on|for|regarding|related to)\s+([^.,?!]+)/i);
@@ -181,10 +198,40 @@ const ChatInterface: React.FC = () => {
       }
     }
     
+    // If this is an external resource request
+    if (isExternalLinkRequest(message)) {
+      const resourceMatch = lowercaseMsg.match(/(?:find|search|get|show)\s+(?:me)?\s+(?:resources|links|videos|information)\s+(?:about|on|for|regarding|related to)?\s+([^.,?!]+)/i);
+      if (resourceMatch && resourceMatch[1]) {
+        return resourceMatch[1].trim();
+      }
+    }
+    
+    // Try to find direct question patterns 
+    const whatIsMatch = lowercaseMsg.match(/what(?:\s+is|\s+are|\s+were|\s+does|\s+do)?\s+(?:a|an|the)?\s+([^.,?!]+)/i);
+    if (whatIsMatch && whatIsMatch[1] && whatIsMatch[1].length > 3) {
+      return whatIsMatch[1].trim();
+    }
+    
+    const howDoesMatch = lowercaseMsg.match(/how\s+(?:does|do|can|could|would|should)\s+(?:a|an|the)?\s+([^.,?!]+)/i);
+    if (howDoesMatch && howDoesMatch[1] && howDoesMatch[1].length > 3) {
+      return howDoesMatch[1].trim();
+    }
+    
     // If still no match, try to find any nouns after common words
     const topicMatch = lowercaseMsg.match(/(?:create|make|generate|give me)\s+(?:some|a|an)?\s+(?:flashcards?|quiz|test|questions?)\s+(?:about|on|for|regarding|related to)?\s+([^.,?!]+)/i);
     if (topicMatch && topicMatch[1]) {
       return topicMatch[1].trim();
+    }
+    
+    // Last resort: extract main noun phrases from the question
+    // This is a simple version - for a production app, consider using NLP libraries
+    const words = lowercaseMsg.split(/\s+/);
+    const stopWords = ['a', 'an', 'the', 'in', 'on', 'at', 'by', 'for', 'with', 'about', 'is', 'are', 'was', 'were'];
+    const filteredWords = words.filter(word => !stopWords.includes(word) && word.length > 3);
+    
+    if (filteredWords.length > 0) {
+      // Use the longest word or phrase as a fallback
+      return filteredWords.sort((a, b) => b.length - a.length)[0];
     }
     
     return "";
@@ -395,9 +442,9 @@ const ChatInterface: React.FC = () => {
                           userMessage.toLowerCase().includes('watch');
       
       const wantsWebsites = userMessage.toLowerCase().includes('website') || 
-                           userMessage.toLowerCase().includes('article') || 
-                           userMessage.toLowerCase().includes('page') ||
-                           userMessage.toLowerCase().includes('link');
+                           userMessage.includes('article') || 
+                           userMessage.includes('page') ||
+                           userMessage.includes('link');
       
       // Default to both if not specified
       const resourceType = {
@@ -481,7 +528,8 @@ const ChatInterface: React.FC = () => {
       const response = await axios.post(`${API_URL}/api/chat`, {
         message: userMessage,
         format: format,
-        maxLength: null
+        maxLength: null,
+        isLectureReference: isLectureReferenceQuestion(userMessage)
       });
 
       // Set loading to false
@@ -489,6 +537,7 @@ const ChatInterface: React.FC = () => {
 
       // Check if it's an off-topic question
       const isOffTopic = response.data.offtopic === true;
+      const suggestedTopics = response.data.suggestedTopics || [];
 
       // Add bot response with typing animation
       setMessages(prev => [
@@ -498,7 +547,8 @@ const ChatInterface: React.FC = () => {
           content: '', 
           fullContent: response.data.response,
           isTyping: true,
-          isOffTopic: isOffTopic
+          isOffTopic: isOffTopic,
+          suggestedTopics: suggestedTopics
         }
       ]);
 
@@ -904,6 +954,34 @@ const ChatInterface: React.FC = () => {
     );
   };
 
+  // Render suggested topics
+  const renderSuggestedTopics = (topics: string[]) => {
+    if (!topics || topics.length === 0) return null;
+    
+    return (
+      <div className="suggested-topics">
+        <p>Suggested topics:</p>
+        <div className="topic-buttons">
+          {topics.map((topic, index) => (
+            <button 
+              key={index} 
+              className="topic-button"
+              onClick={() => {
+                setInput(topic);
+                // Small delay to allow state to update before sending
+                setTimeout(() => {
+                  handleSendMessage();
+                }, 10);
+              }}
+            >
+              {topic}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className={`chat-container ${isExpanded ? 'expanded' : ''}`}>
       <div className="chat-header">
@@ -944,6 +1022,7 @@ const ChatInterface: React.FC = () => {
             {message.isOffTopic && (
               <div className="off-topic-indicator">
                 This question is outside the scope of the course materials
+                {message.suggestedTopics && message.suggestedTopics.length > 0 && renderSuggestedTopics(message.suggestedTopics)}
               </div>
             )}
             {message.isFlashcards && renderFlashcards(message, index)}
