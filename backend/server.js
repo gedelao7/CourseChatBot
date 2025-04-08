@@ -336,6 +336,56 @@ app.post('/api/generate-quiz', async (req, res) => {
   }
 });
 
+// Add route for finding external resources
+app.post('/api/find-external-resources', async (req, res) => {
+  try {
+    const { topic, count = 3, resourceType = { websites: true, videos: true } } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({ error: 'Topic is required' });
+    }
+    
+    console.log(`[API] Finding external resources for topic: ${topic}`);
+    
+    // Check if we have any transcripts processed
+    const transcriptsAvailable = dataProcessor.getTranscriptsCount() > 0;
+    console.log(`[API] Transcripts available: ${transcriptsAvailable ? 'Yes' : 'No'}, Count: ${dataProcessor.getTranscriptsCount()}`);
+    
+    if (!transcriptsAvailable) {
+      return res.status(200).json({ 
+        links: [],
+        sourceFound: false,
+        transcriptsAvailable: false,
+        message: 'No course transcripts available. Please process course materials first.'
+      });
+    }
+    
+    // Find relevant external resources
+    try {
+      const result = await dataProcessor.findExternalResources(topic, resourceType, count);
+      console.log(`[API] Resource search complete. Found ${result.links?.length || 0} links`);
+      
+      return res.json({
+        ...result,
+        transcriptsAvailable: true
+      });
+    } catch (resourceError) {
+      console.error('[API] Error in findExternalResources function:', resourceError);
+      return res.status(500).json({ 
+        error: 'Error finding external resources',
+        message: resourceError.message,
+        transcriptsAvailable: true
+      });
+    }
+  } catch (error) {
+    console.error('[API] Uncaught error in find-external-resources route:', error);
+    return res.status(500).json({ 
+      error: 'Server error processing external resource request',
+      message: error.message
+    });
+  }
+});
+
 // Analytics endpoint to log user questions
 function logQuestion(question, wasHelpful) {
   // Here you would typically store this in a database
