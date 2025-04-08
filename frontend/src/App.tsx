@@ -1,42 +1,14 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React from 'react';
 import './App.css';
 import ChatInterface from './components/ChatInterface';
-import Header from './components/Header';
-import Sidebar from './components/Sidebar';
-import FlashcardGenerator from './components/FlashcardGenerator';
-import QuizGenerator from './components/QuizGenerator';
-
-// We'll add the Flashcards and Quiz components later
 
 function App() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeFeature, setActiveFeature] = useState('chat');
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
   return (
-    <Router>
-      <div className="app">
-        <Header toggleSidebar={toggleSidebar} />
-        <div className="content-wrapper">
-          <Sidebar 
-            isOpen={isSidebarOpen} 
-            activeFeature={activeFeature}
-            setActiveFeature={setActiveFeature}
-          />
-          <main className={`main-content ${isSidebarOpen ? 'sidebar-open' : ''}`}>
-            <Routes>
-              <Route path="/" element={<ChatInterface />} />
-              <Route path="/flashcards" element={<FlashcardGenerator />} />
-              <Route path="/quiz" element={<QuizGenerator />} />
-            </Routes>
-          </main>
-        </div>
-      </div>
-    </Router>
+    <div className="app">
+      <main className="main-content">
+        <ChatInterface />
+      </main>
+    </div>
   );
 }
 
