@@ -122,19 +122,147 @@ body {
 .chat-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 20px);
-  max-width: 1000px;
-  margin: 0 auto;
   background-color: white;
-  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 350px;
+  height: 500px;
+  max-height: 80vh;
+  margin: 0;
+  border-radius: 12px;
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.18);
+  transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              transform 0.3s ease;
+  z-index: 1000;
 }
 
+.chat-container.expanded {
+  width: 90vw;
+  max-width: 800px;
+  height: 80vh;
+  transform: translateY(-10px);
+}
+
+/* Add a header with control buttons */
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: var(--primary-color);
+  border-radius: 12px 12px 0 0;
+  color: white;
+}
+
+.chat-title {
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.chat-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.control-button {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.control-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Adjust messages container for the new layout */
 .chat-messages {
   flex: 1;
-  padding: 20px;
   overflow-y: auto;
+  padding: 10px 15px;
+  height: calc(100% - 150px); /* Better height calculation */
+}
+
+/* Modify the message appearance for compact mode */
+.message .message-content {
+  font-size: 0.9rem;
+  padding: 10px 12px;
+}
+
+/* Enhance the collapse/expand button */
+.toggle-size-button {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: white;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+}
+
+.toggle-size-button:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Minimize button */
+.minimize-button {
+  transform: rotate(180deg);
+}
+
+/* Restored options styling with modifications */
+.chat-options {
+  display: flex;
+  padding: 4px 8px;
+  border-top: 1px solid var(--border-color);
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: thin;
+  -ms-overflow-style: none;
+}
+
+.chat-options::-webkit-scrollbar {
+  height: 4px;
+}
+
+.chat-options::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.option-button {
+  background-color: white;
+  border: 1px solid var(--border-color);
+  border-radius: 15px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.option-button:hover {
+  background-color: var(--secondary-color);
+}
+
+.option-button.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
 }
 
 .message {
@@ -190,11 +318,73 @@ body {
   }
 }
 
+/* Input area styling */
 .chat-input-container {
-  display: flex;
-  padding: 15px;
+  padding: 10px;
   background-color: #f8f9fa;
   border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-input {
+  flex: 1;
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  padding: 8px 15px;
+  font-size: 14px;
+  outline: none;
+  resize: none;
+  min-height: 36px;
+  max-height: 80px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.chat-input:focus {
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.1);
+}
+
+.send-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-size: 14px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.send-button:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.15);
+}
+
+.send-button:disabled {
+  background-color: #c0c0c0;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.send-icon {
+  display: inline-block;
+  transform: translateX(1px);
+  transition: transform 0.2s;
+}
+
+.send-button:hover .send-icon {
+  transform: translateX(2px);
 }
 
 /* Transcript notice and stats */
@@ -203,11 +393,16 @@ body {
   border: 1px solid #ffeeba;
   color: #856404;
   padding: 10px 15px;
-  border-radius: 8px;
-  margin: 10px;
+  border-radius: 0;
+  margin: 0;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.transcript-notice p {
+  margin: 0;
 }
 
 .process-button {
@@ -215,10 +410,12 @@ body {
   color: white;
   border: none;
   border-radius: 6px;
-  padding: 8px 15px;
+  padding: 6px 12px;
   cursor: pointer;
   font-weight: 500;
   transition: background-color 0.2s;
+  align-self: flex-end;
+  font-size: 12px;
 }
 
 .process-button:hover {
@@ -231,70 +428,9 @@ body {
 }
 
 .transcript-stats {
-  padding: 8px 15px;
-  font-size: 12px;
-  color: var(--light-text);
-  text-align: center;
-  background-color: var(--secondary-color);
+  padding: 5px;
+  font-size: 11px;
   border-top: 1px solid var(--border-color);
-}
-
-.chat-input {
-  flex: 1;
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  padding: 10px 15px;
-  font-size: 14px;
-  outline: none;
-  resize: none;
-  min-height: 40px;
-  max-height: 120px;
-  overflow-y: auto;
-}
-
-.send-button {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  margin-left: 10px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-}
-
-.send-button:hover {
-  background-color: var(--primary-dark);
-}
-
-.chat-options {
-  display: flex;
-  padding: 0 15px 10px;
-  gap: 10px;
-}
-
-.option-button {
-  background-color: white;
-  border: 1px solid var(--border-color);
-  border-radius: 15px;
-  padding: 5px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.option-button:hover {
-  background-color: var(--secondary-color);
-}
-
-.option-button.active {
-  background-color: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
 }
 
 /* Loading */
@@ -431,7 +567,7 @@ body {
   height: 300px;
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 0.6s;
+  transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
   margin-bottom: 20px;
 }
@@ -675,27 +811,82 @@ body {
 
 /* Added styles for integrated flashcards and quizzes */
 .chat-flashcards {
-  margin: 15px 0;
-  max-width: 100%;
-  width: 75%;
-  align-self: left;
+  width: 95%;
+  margin: 10px auto;
 }
 
 .chat-flashcards .flashcard {
-  margin: 15px 0;
-  width: 100%;
-  height: 200px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 180px;
 }
 
 .chat-quiz {
-  margin: 15px 0;
+  width: 95%;
+  margin: 10px auto;
+  padding: 10px;
+}
+
+/* Styling for compact mode */
+.chat-container:not(.expanded) .chat-flashcards .flashcard {
+  height: 150px;
+}
+
+.chat-container:not(.expanded) .card-content {
+  font-size: 0.95rem;
+  max-height: 110px;
+  padding: 10px;
+}
+
+.chat-container:not(.expanded) .card-navigation button {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+/* Message content that contains flashcards or quizzes */
+.message.bot .message-content {
+  background-color: var(--secondary-color);
+  width: 100%;
+}
+
+/* Adjust message container for flashcards/quizzes */
+.message.bot {
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 75%;
+}
+
+/* Make flashcard text more visible */
+.card-content {
+  font-size: 1.1rem;
+  text-align: center;
   padding: 15px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  width: 75%;
-  align-self: center;
+  overflow-y: auto;
+  max-height: 160px;
+  width: 100%;
+}
+
+/* Improve quiz options appearance */
+.chat-quiz .options-list {
+  margin-bottom: 15px;
+}
+
+.chat-quiz .option {
+  padding: 10px 15px;
+  font-size: 0.95rem;
+}
+
+/* Message styling adjustments */
+.message.has-special-content {
+  margin-bottom: 25px;
+  width: 100%;
+}
+
+.message-content.special-content {
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--primary-dark);
+  background-color: rgba(245, 247, 251, 0.8);
+  border-bottom: 2px solid var(--primary-light);
+  border-radius: 12px 12px 0 0;
 }
 
 .chat-quiz .question-container {
@@ -756,50 +947,36 @@ body {
   background-color: var(--primary-dark);
 }
 
-/* Message content that contains flashcards or quizzes */
-.message.bot .message-content {
-  background-color: var(--secondary-color);
+.chat-quiz {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.chat-flashcards .flashcard {
   width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Adjust message container for flashcards/quizzes */
-.message.bot {
-  flex-direction: column;
-  align-items: flex-start;
-  max-width: 75%;
+/* Make sure the chat doesn't disappear on small screens */
+@media (max-width: 500px) {
+  .chat-container {
+    width: 90vw;
+    right: 5vw;
+  }
+  
+  .chat-container.expanded {
+    width: 95vw;
+    height: 90vh;
+    right: 2.5vw;
+  }
 }
 
-/* Make flashcard text more visible */
-.card-content {
-  font-size: 1.1rem;
-  text-align: center;
-  padding: 15px;
-  overflow-y: auto;
-  max-height: 160px;
-  width: 100%;
+/* Fix messages container to adjust for new header and input sizing */
+.chat-container:not(.expanded) .message {
+  max-width: 95%;
 }
 
-/* Improve quiz options appearance */
-.chat-quiz .options-list {
-  margin-bottom: 15px;
-}
-
-.chat-quiz .option {
-  padding: 10px 15px;
-  font-size: 0.95rem;
-}
-
-/* Message styling adjustments */
-.message.has-special-content {
-  margin-bottom: 25px;
-  width: 100%;
-}
-
-.message-content.special-content {
-  margin-bottom: 8px;
-  font-weight: 500;
-  color: var(--primary-dark);
-  background-color: rgba(245, 247, 251, 0.8);
-  border-bottom: 2px solid var(--primary-light);
-  border-radius: 12px 12px 0 0;
+.chat-container:not(.expanded) .message .message-content {
+  max-width: 100%;
 }

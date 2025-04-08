@@ -55,6 +55,7 @@ const ChatInterface: React.FC = () => {
   const [transcriptStats, setTranscriptStats] = useState<TranscriptStats | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingSpeed = 15; // milliseconds per character
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -717,8 +718,26 @@ const ChatInterface: React.FC = () => {
     );
   };
 
+  // Add toggle function
+  const toggleExpanded = () => {
+    setIsExpanded(!isExpanded);
+  };
+
   return (
-    <div className="chat-container">
+    <div className={`chat-container ${isExpanded ? 'expanded' : ''}`}>
+      <div className="chat-header">
+        <div className="chat-title">Cardiopulmonary Course Assistant</div>
+        <div className="chat-controls">
+          <button 
+            className="control-button toggle-size-button" 
+            onClick={toggleExpanded}
+            aria-label={isExpanded ? "Collapse chat" : "Expand chat"}
+          >
+            {isExpanded ? '⊖' : '⊕'}
+          </button>
+        </div>
+      </div>
+      
       {transcriptStats && transcriptStats.count === 0 && (
         <div className="transcript-notice">
           <p>No course materials loaded yet. Answers will be general knowledge until transcripts are processed.</p>
@@ -799,15 +818,17 @@ const ChatInterface: React.FC = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Type your question here... (Try asking for flashcards or a quiz on a topic)"
+          placeholder="Type your question here..."
           disabled={isLoading}
+          rows={1}
         />
         <button 
           className="send-button" 
           onClick={handleSendMessage}
           disabled={isLoading || !input.trim()}
+          aria-label="Send message"
         >
-          ➤
+          <span className="send-icon">➤</span>
         </button>
       </div>
     </div>
