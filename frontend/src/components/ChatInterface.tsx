@@ -622,6 +622,9 @@ const ChatInterface: React.FC = () => {
         } as Message
       ]);
 
+      // Set loading to false after starting the typing animation
+      setIsLoading(false);
+
       // Update transcript stats if needed
       if (response.data.transcriptsAvailable !== undefined && 
           (!transcriptStats || transcriptStats.count === 0)) {
