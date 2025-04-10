@@ -36,6 +36,40 @@ A specialized chatbot for educational courses that answers student questions bas
 - [ ] Implement Canvas LTI integration
 - [ ] Add authentication for student tracking
 
+## Canvas LMS Integration
+
+The chatbot is designed to be embedded within Canvas LMS using an iframe. This allows instructors to integrate the course assistant directly into their Canvas courses.
+
+### Iframe Integration
+
+1. Build the frontend application for production:
+   ```
+   cd frontend
+   npm run build
+   ```
+
+2. Host the built application on your web server or hosting platform.
+
+3. In Canvas, navigate to your course and create a new Page.
+
+4. Click the HTML Editor button (<>) and add the following iframe code:
+   ```html
+   <iframe 
+     src="https://your-chatbot-domain.com" 
+     width="100%" 
+     height="600px" 
+     style="border: none; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);" 
+     title="Course Chatbot"
+     allowfullscreen
+   ></iframe>
+   ```
+
+5. Adjust the height as needed to fit your course layout.
+
+### LTI Integration (Future Enhancement)
+
+For a more seamless integration, we plan to implement Canvas LTI support. A sample LTI configuration file is provided at `frontend/public/canvas-lti-config.json` for reference.
+
 ## Getting Started
 
 1. Clone the repository
