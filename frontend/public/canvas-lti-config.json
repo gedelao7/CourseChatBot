@@ -1,0 +1,46 @@
+{
+  "title": "Cardiopulmonary Course Chatbot",
+  "description": "AI-powered chatbot assistant for Cardiopulmonary Practice course",
+  "oidc_initiation_url": "https://your-chatbot-domain.com/api/lti/login",
+  "target_link_uri": "https://your-chatbot-domain.com/api/lti/launch",
+  "extensions": [
+    {
+      "platform": "canvas.instructure.com",
+      "settings": {
+        "platform": "canvas.instructure.com",
+        "placements": [
+          {
+            "placement": "course_navigation",
+            "enabled": true,
+            "default": "enabled",
+            "text": "Course Assistant",
+            "visibility": "admins,members",
+            "icon_url": "https://your-chatbot-domain.com/icon.png"
+          },
+          {
+            "placement": "editor_button",
+            "enabled": true,
+            "text": "Course Assistant",
+            "icon_url": "https://your-chatbot-domain.com/icon.png",
+            "selection_width": 800,
+            "selection_height": 600
+          }
+        ]
+      }
+    }
+  ],
+  "privacy_level": "public",
+  "public_jwk": {
+    "kty": "RSA",
+    "alg": "RS256",
+    "e": "AQAB",
+    "kid": "your-key-id",
+    "n": "your-public-key-value"
+  },
+  "custom_fields": {
+    "context_id": "$Canvas.course.id",
+    "canvas_user_id": "$Canvas.user.id",
+    "canvas_user_name": "$Canvas.user.name",
+    "canvas_roles": "$Canvas.membership.roles"
+  }
+} 

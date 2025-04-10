@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, FormEvent } from 'react';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:5000';
@@ -18,10 +18,10 @@ interface QuizQuestion {
 }
 
 interface Message {
-  type: 'user' | 'bot';
   content: string;
-  isTyping?: boolean;
-  fullContent?: string;
+  role: 'user' | 'bot';
+  isTyping: boolean;
+  fullContent: string;
   isOffTopic?: boolean;
   isFlashcards?: boolean;
   isQuiz?: boolean;
@@ -39,10 +39,10 @@ interface Message {
     questions: QuizQuestion[];
     topic: string;
     currentQuestionIndex: number;
-    selectedAnswer: number | null;
+    selectedAnswer: string | null;
     showExplanation: boolean;
     quizComplete: boolean;
-    userAnswers: number[];
+    userAnswers: string[];
   };
 }
 
@@ -53,7 +53,12 @@ interface TranscriptStats {
 
 const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { type: 'bot', content: 'Hello! I\'m your Course Assistant. Ask me anything about the course materials. You can also ask me to create flashcards or generate a quiz on any course topic.' }
+    {
+      role: 'bot',
+      content: 'Hello! I am your Cardiopulmonary Course Assistant. How can I help you today?',
+      isTyping: false,
+      fullContent: 'Hello! I am your Cardiopulmonary Course Assistant. How can I help you today?'
+    }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -63,14 +68,37 @@ const ChatInterface: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingSpeed = 15; // milliseconds per character
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isInIframe, setIsInIframe] = useState<boolean>(false);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Add scroll event listener to track manual scrolling
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const messagesContainer = messagesEndRef.current?.parentElement;
+    if (messagesContainer) {
+      const handleScroll = () => {
+        const { scrollTop, scrollHeight, clientHeight } = messagesContainer;
+        // If user is near bottom (within 100px), consider it auto-scrolled
+        setIsScrolled(scrollHeight - scrollTop - clientHeight > 100);
+      };
+
+      messagesContainer.addEventListener('scroll', handleScroll);
+      return () => messagesContainer.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
+
+  // Only auto-scroll if not manually scrolled
+  useEffect(() => {
+    if (!isScrolled) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isScrolled]);
+
+  // Reset scroll state when new message is added
+  useEffect(() => {
+    if (messages.length > 0) {
+      setIsScrolled(false);
+    }
+  }, [messages.length]);
 
   // Fetch transcript stats on component mount
   useEffect(() => {
@@ -242,9 +270,11 @@ const ChatInterface: React.FC = () => {
     const topic = extractTopic(userMessage);
     if (!topic) {
       setMessages(prev => [...prev, { 
-        type: 'bot', 
-        content: 'What topic would you like flashcards on? Please specify a course-related topic.'
-      }]);
+        role: 'bot', 
+        content: 'What topic would you like flashcards on? Please specify a course-related topic.',
+        isTyping: false,
+        fullContent: 'What topic would you like flashcards on? Please specify a course-related topic.'
+      } as Message]);
       return;
     }
 
@@ -264,10 +294,12 @@ const ChatInterface: React.FC = () => {
       if (isOffTopic) {
         setIsLoading(false);
         setMessages(prev => [...prev, { 
-          type: 'bot', 
+          role: 'bot', 
           content: `I can only create flashcards for topics covered in the course materials. "${topic}" doesn't appear to be covered in the transcripts I have. Please ask for flashcards related to the course content.`,
+          isTyping: false,
+          fullContent: `I can only create flashcards for topics covered in the course materials. "${topic}" doesn't appear to be covered in the transcripts I have. Please ask for flashcards related to the course content.`,
           isOffTopic: true
-        }]);
+        } as Message]);
         return;
       }
 
@@ -285,32 +317,40 @@ const ChatInterface: React.FC = () => {
 
       if (response.data.flashcards && response.data.flashcards.length > 0 && response.data.sourceFound) {
         setMessages(prev => [...prev, { 
-          type: 'bot', 
+          role: 'bot', 
           content: `Here are ${count} flashcards about "${topic}":`,
+          isTyping: false,
+          fullContent: `Here are ${count} flashcards about "${topic}":`,
           isFlashcards: true,
           flashcards: response.data.flashcards,
           currentCardIndex: 0
-        }]);
+        } as Message]);
       } else if (response.data.flashcards && response.data.flashcards.length > 0) {
         // We have flashcards but no specific source found in transcripts
         setMessages(prev => [...prev, { 
-          type: 'bot', 
+          role: 'bot', 
           content: `I couldn't find specific information about "${topic}" in the course materials. Please try a different course-related topic.`,
+          isTyping: false,
+          fullContent: `I couldn't find specific information about "${topic}" in the course materials. Please try a different course-related topic.`,
           isOffTopic: true
-        }]);
+        } as Message]);
       } else {
         setMessages(prev => [...prev, { 
-          type: 'bot', 
-          content: `I couldn't generate flashcards for "${topic}". Please try a different course-related topic.`
-        }]);
+          role: 'bot', 
+          content: `I couldn't generate flashcards for "${topic}". Please try a different course-related topic.`,
+          isTyping: false,
+          fullContent: `I couldn't generate flashcards for "${topic}". Please try a different course-related topic.`
+        } as Message]);
       }
     } catch (error) {
       console.error('Error generating flashcards:', error);
       setIsLoading(false);
       setMessages(prev => [...prev, { 
-        type: 'bot', 
-        content: 'Sorry, I encountered an error generating flashcards. Please try again.'
-      }]);
+        role: 'bot', 
+        content: 'Sorry, I encountered an error generating flashcards. Please try again.',
+        isTyping: false,
+        fullContent: 'Sorry, I encountered an error generating flashcards. Please try again.'
+      } as Message]);
     }
   };
 
@@ -319,9 +359,11 @@ const ChatInterface: React.FC = () => {
     const topic = extractTopic(userMessage);
     if (!topic) {
       setMessages(prev => [...prev, { 
-        type: 'bot', 
-        content: 'What topic would you like a quiz on? Please specify a course-related topic.'
-      }]);
+        role: 'bot', 
+        content: 'What topic would you like a quiz on? Please specify a course-related topic.',
+        isTyping: false,
+        fullContent: 'What topic would you like a quiz on? Please specify a course-related topic.'
+      } as Message]);
       return;
     }
 
@@ -341,10 +383,12 @@ const ChatInterface: React.FC = () => {
       if (isOffTopic) {
         setIsLoading(false);
         setMessages(prev => [...prev, { 
-          type: 'bot', 
+          role: 'bot', 
           content: `I can only create quizzes for topics covered in the course materials. "${topic}" doesn't appear to be covered in the transcripts I have. Please ask for a quiz related to the course content.`,
+          isTyping: false,
+          fullContent: `I can only create quizzes for topics covered in the course materials. "${topic}" doesn't appear to be covered in the transcripts I have. Please ask for a quiz related to the course content.`,
           isOffTopic: true
-        }]);
+        } as Message]);
         return;
       }
 
@@ -366,8 +410,10 @@ const ChatInterface: React.FC = () => {
 
       if (response.data.questions && response.data.questions.length > 0 && response.data.sourceFound) {
         setMessages(prev => [...prev, { 
-          type: 'bot', 
+          role: 'bot', 
           content: `Here's a ${difficulty} difficulty quiz with ${count} questions about "${topic}":`,
+          isTyping: false,
+          fullContent: `Here's a ${difficulty} difficulty quiz with ${count} questions about "${topic}":`,
           isQuiz: true,
           quizData: {
             questions: response.data.questions,
@@ -378,27 +424,33 @@ const ChatInterface: React.FC = () => {
             quizComplete: false,
             userAnswers: []
           }
-        }]);
+        } as Message]);
       } else if (response.data.questions && response.data.questions.length > 0) {
         // We have questions but no specific source found in transcripts
         setMessages(prev => [...prev, { 
-          type: 'bot', 
+          role: 'bot', 
           content: `I couldn't find specific information about "${topic}" in the course materials. Please try a different course-related topic.`,
+          isTyping: false,
+          fullContent: `I couldn't find specific information about "${topic}" in the course materials. Please try a different course-related topic.`,
           isOffTopic: true
-        }]);
+        } as Message]);
       } else {
         setMessages(prev => [...prev, { 
-          type: 'bot', 
-          content: `I couldn't generate a quiz for "${topic}". Please try a different course-related topic.`
-        }]);
+          role: 'bot', 
+          content: `I couldn't generate a quiz for "${topic}". Please try a different course-related topic.`,
+          isTyping: false,
+          fullContent: `I couldn't generate a quiz for "${topic}". Please try a different course-related topic.`
+        } as Message]);
       }
     } catch (error) {
       console.error('Error generating quiz:', error);
       setIsLoading(false);
       setMessages(prev => [...prev, { 
-        type: 'bot', 
-        content: 'Sorry, I encountered an error generating the quiz. Please try again.'
-      }]);
+        role: 'bot', 
+        content: 'Sorry, I encountered an error generating the quiz. Please try again.',
+        isTyping: false,
+        fullContent: 'Sorry, I encountered an error generating the quiz. Please try again.'
+      } as Message]);
     }
   };
 
@@ -407,9 +459,11 @@ const ChatInterface: React.FC = () => {
     const topic = extractTopic(userMessage);
     if (!topic) {
       setMessages(prev => [...prev, { 
-        type: 'bot', 
-        content: 'What topic would you like to find external resources for? Please specify a course-related topic.'
-      }]);
+        role: 'bot', 
+        content: 'What topic would you like to find external resources for? Please specify a course-related topic.',
+        isTyping: false,
+        fullContent: 'What topic would you like to find external resources for? Please specify a course-related topic.'
+      } as Message]);
       return;
     }
 
@@ -429,10 +483,12 @@ const ChatInterface: React.FC = () => {
       if (isOffTopic) {
         setIsLoading(false);
         setMessages(prev => [...prev, { 
-          type: 'bot', 
+          role: 'bot', 
           content: `I can only provide external resources for topics covered in the course materials. "${topic}" doesn't appear to be covered in the transcripts I have. Please ask for resources related to the course content.`,
+          isTyping: false,
+          fullContent: `I can only provide external resources for topics covered in the course materials. "${topic}" doesn't appear to be covered in the transcripts I have. Please ask for resources related to the course content.`,
           isOffTopic: true
-        }]);
+        } as Message]);
         return;
       }
 
@@ -467,73 +523,87 @@ const ChatInterface: React.FC = () => {
 
       if (response.data.links && response.data.links.length > 0 && response.data.sourceFound) {
         setMessages(prev => [...prev, { 
-          type: 'bot', 
+          role: 'bot', 
           content: `Here are some external resources about "${topic}" from reliable sources:`,
+          isTyping: false,
+          fullContent: `Here are some external resources about "${topic}" from reliable sources:`,
           isExternalLinks: true,
           externalLinks: response.data.links
-        }]);
+        } as Message]);
       } else if (response.data.links && response.data.links.length > 0) {
         // We have links but no specific source found in transcripts
         setMessages(prev => [...prev, { 
-          type: 'bot', 
+          role: 'bot', 
           content: `I couldn't find specific information about "${topic}" in the course materials. Please try a different course-related topic.`,
+          isTyping: false,
+          fullContent: `I couldn't find specific information about "${topic}" in the course materials. Please try a different course-related topic.`,
           isOffTopic: true
-        }]);
+        } as Message]);
       } else {
         setMessages(prev => [...prev, { 
-          type: 'bot', 
-          content: `I couldn't find external resources for "${topic}". Please try a more specific course-related topic.`
-        }]);
+          role: 'bot', 
+          content: `I couldn't find external resources for "${topic}". Please try a more specific course-related topic.`,
+          isTyping: false,
+          fullContent: `I couldn't find external resources for "${topic}". Please try a more specific course-related topic.`
+        } as Message]);
       }
     } catch (error) {
       console.error('Error finding external resources:', error);
       setIsLoading(false);
       setMessages(prev => [...prev, { 
-        type: 'bot', 
-        content: 'Sorry, I encountered an error finding external resources. Please try again.'
-      }]);
+        role: 'bot', 
+        content: 'Sorry, I encountered an error finding external resources. Please try again.',
+        isTyping: false,
+        fullContent: 'Sorry, I encountered an error finding external resources. Please try again.'
+      } as Message]);
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!input.trim()) return;
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
-    const userMessage = input.trim();
+  const handleSubmit = async () => {
+    if (input.trim() === '') return;
+    
+    const newMessage: Message = {
+      role: 'user',
+      content: input,
+      isTyping: false,
+      fullContent: input
+    };
+    
+    setMessages(prevMessages => [...prevMessages, newMessage]);
     setInput('');
-    
-    // Add user message to chat
-    setMessages(prev => [...prev, { type: 'user', content: userMessage }]);
-    
-    // Check if it's a flashcard or quiz request before proceeding to general chat
-    if (isFlashcardRequest(userMessage)) {
-      await handleFlashcardRequest(userMessage);
-      return;
-    }
-    
-    if (isQuizRequest(userMessage)) {
-      await handleQuizRequest(userMessage);
-      return;
-    }
-    
-    // Check if it's an external link request
-    if (isExternalLinkRequest(userMessage)) {
-      await handleExternalLinkRequest(userMessage);
-      return;
-    }
-    
     setIsLoading(true);
     
     try {
+      // Check if it's a flashcard or quiz request before proceeding to general chat
+      if (isFlashcardRequest(input)) {
+        await handleFlashcardRequest(input);
+        return;
+      }
+      
+      if (isQuizRequest(input)) {
+        await handleQuizRequest(input);
+        return;
+      }
+      
+      // Check if it's an external link request
+      if (isExternalLinkRequest(input)) {
+        await handleExternalLinkRequest(input);
+        return;
+      }
+      
       // Send request to backend
       const response = await axios.post(`${API_URL}/api/chat`, {
-        message: userMessage,
+        message: input,
         format: format,
         maxLength: null,
-        isLectureReference: isLectureReferenceQuestion(userMessage)
+        isLectureReference: isLectureReferenceQuestion(input)
       });
-
-      // Set loading to false
-      setIsLoading(false);
 
       // Check if it's an off-topic question
       const isOffTopic = response.data.offtopic === true;
@@ -543,13 +613,13 @@ const ChatInterface: React.FC = () => {
       setMessages(prev => [
         ...prev, 
         { 
-          type: 'bot', 
+          role: 'bot', 
           content: '', 
           fullContent: response.data.response,
           isTyping: true,
           isOffTopic: isOffTopic,
           suggestedTopics: suggestedTopics
-        }
+        } as Message
       ]);
 
       // Update transcript stats if needed
@@ -561,13 +631,21 @@ const ChatInterface: React.FC = () => {
         }));
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error:', error);
       setIsLoading(false);
-      setMessages(prev => [...prev, { 
-        type: 'bot', 
-        content: 'Sorry, I encountered an error. Please try again.'
-      }]);
     }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    handleSubmit();
   };
 
   // Flashcard UI handlers
@@ -605,7 +683,7 @@ const ChatInterface: React.FC = () => {
           ...message,
           quizData: {
             ...message.quizData,
-            selectedAnswer: answerIndex,
+            selectedAnswer: answerIndex.toString(),
             showExplanation: true
           }
         };
@@ -627,7 +705,7 @@ const ChatInterface: React.FC = () => {
         if (isLastQuestion) {
           // Complete the quiz
           const updatedAnswers = [...quizData.userAnswers];
-          updatedAnswers[quizData.currentQuestionIndex] = quizData.selectedAnswer !== null ? quizData.selectedAnswer : -1;
+          updatedAnswers[quizData.currentQuestionIndex] = quizData.selectedAnswer || '';
           
           updatedMessages[messageIndex] = {
             ...message,
@@ -640,7 +718,7 @@ const ChatInterface: React.FC = () => {
         } else {
           // Move to next question
           const updatedAnswers = [...quizData.userAnswers];
-          updatedAnswers[quizData.currentQuestionIndex] = quizData.selectedAnswer !== null ? quizData.selectedAnswer : -1;
+          updatedAnswers[quizData.currentQuestionIndex] = quizData.selectedAnswer || '';
           
           updatedMessages[messageIndex] = {
             ...message,
@@ -657,9 +735,6 @@ const ChatInterface: React.FC = () => {
       
       return updatedMessages;
     });
-    
-    // Scroll to the updated question
-    setTimeout(scrollToBottom, 100);
   };
 
   const calculateQuizScore = (quizData: Message['quizData']) => {
@@ -667,7 +742,7 @@ const ChatInterface: React.FC = () => {
     
     let correctCount = 0;
     for (let i = 0; i < quizData.questions.length; i++) {
-      if (quizData.userAnswers[i] === quizData.questions[i].answer) {
+      if (quizData.userAnswers[i] === quizData.questions[i].answer.toString()) {
         correctCount++;
       }
     }
@@ -703,47 +778,29 @@ const ChatInterface: React.FC = () => {
   };
 
   const handleProcessTranscripts = async () => {
-    setIsProcessing(true);
-    
+    setIsLoading(true);
     try {
-      await axios.post(`${API_URL}/api/process-course`);
-      
-      setMessages(prev => [...prev, { 
-        type: 'bot', 
-        content: 'Processing course materials. This may take a few minutes. I\'ll be able to answer course-specific questions once processing is complete.'
-      }]);
-      
-      // Fetch updated stats after a delay to allow processing
-      setTimeout(async () => {
-        try {
-          const response = await axios.get(`${API_URL}/api/transcript-stats`);
-          setTranscriptStats(response.data);
-          
-          if (response.data.count > 0) {
-            setMessages(prev => [...prev, { 
-              type: 'bot', 
-              content: `Successfully processed ${response.data.count} transcript files! You can now ask me questions about the course content.`
-            }]);
-          }
-        } catch (error) {
-          console.error('Error fetching updated transcript stats:', error);
-        }
-        setIsProcessing(false);
-      }, 5000);
+      const response = await axios.post(`${API_URL}/api/process-course`);
+      if (response.data.success) {
+        setMessages(prev => [...prev, { 
+          role: 'bot',
+          content: 'Transcripts processed successfully! You can now ask questions about the course content.',
+          isTyping: false,
+          fullContent: 'Transcripts processed successfully! You can now ask questions about the course content.'
+        } as Message]);
+        const statsResponse = await axios.get(`${API_URL}/api/transcript-stats`);
+        setTranscriptStats(statsResponse.data);
+      }
     } catch (error) {
       console.error('Error processing transcripts:', error);
-      setIsProcessing(false);
       setMessages(prev => [...prev, { 
-        type: 'bot', 
-        content: 'Sorry, I encountered an error while processing the course materials. Please make sure the transcript files are in the backend/data/course directory.'
-      }]);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+        role: 'bot',
+        content: 'Error processing transcripts. Please try again.',
+        isTyping: false,
+        fullContent: 'Error processing transcripts. Please try again.'
+      } as Message]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -859,9 +916,9 @@ const ChatInterface: React.FC = () => {
             {currentQuestion.options.map((option, optIndex) => (
               <div 
                 key={optIndex} 
-                className={`option ${quizData.selectedAnswer === optIndex ? 'selected' : ''} ${
+                className={`option ${quizData.selectedAnswer === optIndex.toString() ? 'selected' : ''} ${
                   quizData.showExplanation && currentQuestion.answer === optIndex ? 'correct' : ''
-                } ${quizData.showExplanation && quizData.selectedAnswer === optIndex && quizData.selectedAnswer !== currentQuestion.answer ? 'incorrect' : ''}`}
+                } ${quizData.showExplanation && quizData.selectedAnswer === optIndex.toString() && quizData.selectedAnswer !== currentQuestion.answer.toString() ? 'incorrect' : ''}`}
                 onClick={() => !quizData.showExplanation && handleAnswerSelect(index, optIndex)}
               >
                 {option}
@@ -970,7 +1027,7 @@ const ChatInterface: React.FC = () => {
                 setInput(topic);
                 // Small delay to allow state to update before sending
                 setTimeout(() => {
-                  handleSendMessage();
+                  handleSubmit();
                 }, 10);
               }}
             >
@@ -981,6 +1038,59 @@ const ChatInterface: React.FC = () => {
       </div>
     );
   };
+
+  // Detect if running inside an iframe
+  useEffect(() => {
+    try {
+      setIsInIframe(window.self !== window.top);
+    } catch (e) {
+      // If we can't access window.top due to same-origin policy,
+      // we're definitely in an iframe
+      setIsInIframe(true);
+    }
+  }, []);
+
+  // Add responsive behavior for iframe
+  useEffect(() => {
+    if (!isInIframe) return;
+    
+    // Handle iframe sizing
+    const handleResize = () => {
+      // You could add specific behavior here if needed
+      scrollToBottom();
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    // Handle messages from parent (Canvas)
+    const handleMessage = (event: MessageEvent) => {
+      // Process messages from Canvas parent
+      if (event.data && typeof event.data === 'object') {
+        if (event.data.type === 'CANVAS_CONTEXT') {
+          console.log('Received Canvas context:', event.data.context);
+          // You could process Canvas-specific context here
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [isInIframe]);
+  
+  // Notify iframe parent when fully loaded
+  useEffect(() => {
+    if (isInIframe && window.parent) {
+      try {
+        window.parent.postMessage({ type: 'CHATBOT_READY' }, '*');
+      } catch (e) {
+        console.error('Failed to communicate with parent frame', e);
+      }
+    }
+  }, [isInIframe]);
 
   return (
     <div className={`chat-container ${isExpanded ? 'expanded' : ''}`}>
@@ -1012,7 +1122,7 @@ const ChatInterface: React.FC = () => {
       
       <div className="chat-messages">
         {messages.map((message, index) => (
-          <div key={index} className={`message ${message.type} ${message.isOffTopic ? 'off-topic' : ''} ${(message.isFlashcards || message.isQuiz) ? 'has-special-content' : ''}`}>
+          <div key={index} className={`message ${message.role} ${message.isOffTopic ? 'off-topic' : ''} ${(message.isFlashcards || message.isQuiz) ? 'has-special-content' : ''}`}>
             <div className={`message-content ${(message.isFlashcards || message.isQuiz) ? 'special-content' : ''}`}>
               {message.content}
               {message.isTyping && (
@@ -1072,14 +1182,14 @@ const ChatInterface: React.FC = () => {
           className="chat-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyPress={handleKeyDown}
           placeholder="Type your question here..."
           disabled={isLoading}
           rows={1}
         />
         <button 
           className="send-button" 
-          onClick={handleSendMessage}
+          onClick={handleButtonClick}
           disabled={isLoading || !input.trim()}
           aria-label="Send message"
         >
