@@ -55,6 +55,13 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Add security headers for iframe embedding
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'ALLOW-FROM https://dev-learninglibrary.com');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://dev-learninglibrary.com");
+  next();
+});
+
 // Initialize Algolia if credentials are provided
 if (process.env.ALGOLIA_APP_ID && process.env.ALGOLIA_API_KEY) {
   dataProcessor.initAlgolia(
