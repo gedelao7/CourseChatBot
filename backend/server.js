@@ -27,7 +27,8 @@ app.use(cors({
       'http://localhost:5000',
       'https://*.instructure.com',
       'https://*.canvas.net',
-      'https://*.canvaslms.com'
+      'https://*.canvaslms.com',
+      'https://dev-learninglibrary.com'
     ];
     
     // Check if the origin is allowed

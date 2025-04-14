@@ -1,88 +1,80 @@
-# Course ChatBot
+# Cardiopulmonary Course Chatbot
 
-A specialized chatbot for educational courses that answers student questions based on lecture transcripts, generates quizzes, and creates flashcards for study.
+A chatbot assistant for the Cardiopulmonary Practice course that helps students with course-related questions, flashcards, and quizzes.
 
-## Features Checklist
+## Setup Instructions
 
-### Transcript Processing ✅
-- [x] Set up folder structure for transcript files
-- [x] Process transcripts from local folder
-- [x] Load transcripts on server startup
-- [x] Semantic search through transcript content
-- [x] Display transcript availability in UI
-- [ ] Add drag-and-drop transcript upload (optional enhancement)
+1. Extract the contents of `chatbot-full.zip` to your desired location.
 
-### AI Integration ✅
-- [x] Connect to OpenAI API for chat responses
-- [x] Generate responses based on relevant transcript content
-- [x] Generate flashcards from course content
-- [x] Generate quizzes from course content
-- [x] Fallback to general knowledge when specific content not found
-
-### User Interface ✅
-- [x] Responsive chat interface
-- [x] Typing animation effect
-- [x] Interactive flashcard system
-- [x] Interactive quiz system
-- [x] Navigation sidebar
-- [x] Transcript status indicator
-
-### Data Collection
-- [x] Log user questions and interactions
-- [ ] Advanced analytics dashboard (future enhancement)
-
-### LMS Integration (Planned)
-- [ ] Create iframe-compatible version
-- [ ] Implement Canvas LTI integration
-- [ ] Add authentication for student tracking
-
-## Canvas LMS Integration
-
-The chatbot is designed to be embedded within Canvas LMS using an iframe. This allows instructors to integrate the course assistant directly into their Canvas courses.
-
-### Iframe Integration
-
-1. Build the frontend application for production:
+2. Navigate to the backend directory:
+   ```bash
+   cd backend
    ```
+
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+4. Create a `.env` file in the backend directory with the following variables:
+   ```
+   OPENAI_API_KEY=your_openai_api_key
+   PORT=5000
+   ```
+
+5. Start the backend server:
+   ```bash
+   npm start
+   ```
+
+6. In a new terminal, navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+7. Install frontend dependencies:
+   ```bash
+   npm install
+   ```
+
+8. Start the frontend development server:
+   ```bash
+   npm start
+   ```
+
+The chatbot should now be accessible at `http://localhost:3000`.
+
+## Features
+
+- Course-related Q&A
+- Flashcard generation
+- Quiz creation
+- Transcript processing
+- Local search functionality
+
+## Development
+
+- Frontend: React with TypeScript
+- Backend: Node.js with Express
+- OpenAI API integration
+- Local transcript storage and search
+
+## Deployment
+
+For production deployment:
+
+1. Build the frontend:
+   ```bash
    cd frontend
    npm run build
    ```
 
-2. Host the built application on your web server or hosting platform.
+2. The backend server should be running to handle API requests.
 
-3. In Canvas, navigate to your course and create a new Page.
+3. Configure your web server to serve the frontend build files and proxy API requests to the backend server.
 
-4. Click the HTML Editor button (<>) and add the following iframe code:
-   ```html
-   <iframe 
-     src="https://your-chatbot-domain.com" 
-     width="100%" 
-     height="600px" 
-     style="border: none; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);" 
-     title="Course Chatbot"
-     allowfullscreen
-   ></iframe>
-   ```
+## Troubleshooting
 
-5. Adjust the height as needed to fit your course layout.
-
-### LTI Integration (Future Enhancement)
-
-For a more seamless integration, we plan to implement Canvas LTI support. A sample LTI configuration file is provided at `frontend/public/canvas-lti-config.json` for reference.
-
-## Getting Started
-
-1. Clone the repository
-2. Install dependencies with `npm install` in both frontend and backend directories
-3. Place course transcript files in `backend/data/course` directory
-4. Create a `.env` file in the backend directory with your OpenAI API key:
-   ```
-   OPENAI_API_KEY=your_api_key_here
-   ```
-5. Start the backend server with `npm start` in the backend directory
-6. Start the frontend with `npm start` in the frontend directory
-7. Access the application at `http://localhost:3000`
-
-## Note on Transcript Processing
-
-The system will automatically process transcript files placed in the `backend/data/course` directory on server startup. Supported file formats include `.txt`, `.vtt`, `.srt`, `.doc`, `.docx`, and `.pdf`. 
+- Ensure the backend server is running before accessing the frontend
+- Check that the OpenAI API key is valid and properly set in the `.env` file
+- Verify that the course data is present in the `backend/data/course` directory 
