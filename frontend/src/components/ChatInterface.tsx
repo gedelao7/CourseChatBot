@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, FormEvent } from 'react';
 import axios from 'axios';
-
-const API_URL = 'http://localhost:5000';
+import { API_URL } from '../config';
 
 // Import flashcard and quiz related types and functionality
 interface Flashcard {
