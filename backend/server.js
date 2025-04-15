@@ -6,6 +6,7 @@ const { OpenAI } = require('openai');
 const dataProcessor = require('./utils/dataProcessor');
 const courseDownloader = require('./utils/courseDownloader');
 const fs = require('fs');
+const checkPort = require('./checkPort');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -28,7 +29,8 @@ app.use(cors({
       'https://*.instructure.com',
       'https://*.canvas.net',
       'https://*.canvaslms.com',
-      'https://dev-learninglibrary.com'
+      'https://dev-learninglibrary.com',
+      'http://localhost:5173'  // Add Vite's default port
     ];
     
     // Check if the origin is allowed
@@ -57,8 +59,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Add security headers for iframe embedding
 app.use((req, res, next) => {
-  res.setHeader('X-Frame-Options', 'ALLOW-FROM https://dev-learninglibrary.com');
-  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://dev-learninglibrary.com");
+  res.setHeader('X-Frame-Options', 'ALLOW-FROM http://localhost:5173');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' http://localhost:5173");
   next();
 });
 
@@ -490,7 +492,47 @@ app.get('/api/transcript-stats', (req, res) => {
 });
 
 // Start the server
-const validateConfig = () => {
+async function startServer() {
+  try {
+    const portAvailable = await checkPort(PORT);
+    if (!portAvailable) {
+      console.error(`Port ${PORT} is already in use. Please make sure no other instance is running.`);
+      process.exit(1);
+    }
+
+    let configValid = validateConfig();
+    
+    const server = app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+      
+      if (!configValid) {
+        console.log('\nWarning: Some configuration is missing or invalid.');
+        console.log('The server will still run, but some features may be limited.\n');
+      }
+      
+      console.log('Available endpoints:');
+      console.log('- /api/chat - Send messages to the chatbot');
+      console.log('- /api/process-course - Process course materials');
+      console.log('- /api/generate-flashcards - Generate flashcards');
+      console.log('- /api/generate-quiz - Generate quiz questions');
+      console.log('- /api/find-external-resources - Find relevant external resources');
+      console.log('- /api/transcript-stats - Get stats about available transcripts');
+    });
+
+    // Graceful shutdown handlers
+    process.on('SIGTERM', () => gracefulShutdown(server));
+    process.on('SIGINT', () => gracefulShutdown(server));
+  } catch (error) {
+    console.error('Error starting server:', error);
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();
+
+// Validate configuration
+function validateConfig() {
   const requiredEnvVars = ['OPENAI_API_KEY'];
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
   
@@ -517,23 +559,30 @@ const validateConfig = () => {
   }
   
   return true;
-};
+}
 
-// Initialized security checks
-let configValid = validateConfig();
+function gracefulShutdown(server) {
+  console.log('Received kill signal, shutting down gracefully');
+  server.close(() => {
+    console.log('Closed out remaining connections');
+    process.exit(0);
+  });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  
-  if (!configValid) {
-    console.warn('⚠️ Server started with configuration warnings. Some features may not work correctly.');
-  }
-  
-  console.log('API endpoints:');
-  console.log('- /api/chat - Chat with the course assistant');
-  console.log('- /api/process-course - Process course materials from local folder');
-  console.log('- /api/generate-flashcards - Generate flashcards on a topic');
-  console.log('- /api/generate-quiz - Generate quiz questions on a topic');
-  console.log('- /api/find-external-resources - Find relevant external resources');
-  console.log('- /api/transcript-stats - Get stats about available transcripts');
+  // Force close after 10 seconds
+  setTimeout(() => {
+    console.error('Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
+}
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  gracefulShutdown();
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  gracefulShutdown();
 }); 
