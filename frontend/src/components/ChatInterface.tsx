@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, FormEvent } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config';
 
@@ -61,8 +61,6 @@ const ChatInterface: React.FC = () => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [format, setFormat] = useState<string | null>(null);
   const [transcriptStats, setTranscriptStats] = useState<TranscriptStats | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingSpeed = 15; // milliseconds per character
@@ -599,7 +597,7 @@ const ChatInterface: React.FC = () => {
       // Send request to backend
       const response = await axios.post(`${API_URL}/api/chat`, {
         message: input,
-        format: format,
+        format: null,
         maxLength: null,
         isLectureReference: isLectureReferenceQuestion(input)
       });
@@ -1115,9 +1113,9 @@ const ChatInterface: React.FC = () => {
           <button 
             className="process-button" 
             onClick={handleProcessTranscripts}
-            disabled={isProcessing}
+            disabled={isLoading}
           >
-            {isProcessing ? 'Processing...' : 'Process Transcripts'}
+            {isLoading ? 'Processing...' : 'Process Transcripts'}
           </button>
         </div>
       )}
