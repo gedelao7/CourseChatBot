@@ -26,6 +26,7 @@ app.use(cors({
     const allowedOrigins = [
       'http://localhost:3000',
       'https://chatbot75.netlify.app',
+      'https://*.netlify.app',
       'https://*.instructure.com',
       'https://*.canvas.net',
       'https://*.canvaslms.com',
@@ -61,10 +62,14 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   
   // Set CORS headers
-  if (origin && origin.includes('localhost:3000')) {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-  } else if (origin && origin.includes('chatbot75.netlify.app')) {
-    res.setHeader('Access-Control-Allow-Origin', 'https://chatbot75.netlify.app');
+  if (origin) {
+    if (origin.includes('localhost:3000')) {
+      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+    } else if (origin.includes('netlify.app')) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else if (origin.includes('chatbot75.netlify.app')) {
+      res.setHeader('Access-Control-Allow-Origin', 'https://chatbot75.netlify.app');
+    }
   }
   
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -74,7 +79,7 @@ app.use((req, res, next) => {
   // Set security headers only in production
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; frame-ancestors 'self' https://chatbot75.netlify.app https://*.instructure.com https://*.canvas.net https://*.canvaslms.com https://dev-learninglibrary.com");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; frame-ancestors 'self' https://*.netlify.app https://*.instructure.com https://*.canvas.net https://*.canvaslms.com https://dev-learninglibrary.com");
   }
   
   next();
@@ -88,6 +93,9 @@ if (process.env.ALGOLIA_APP_ID && process.env.ALGOLIA_API_KEY) {
     process.env.ALGOLIA_INDEX_NAME || 'course_transcripts'
   );
 }
+
+// Mount API routes
+app.use('/api', require('./routes/api'));
 
 // Routes
 app.post('/api/chat', async (req, res) => {
