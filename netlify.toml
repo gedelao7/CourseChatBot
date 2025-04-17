@@ -8,34 +8,10 @@
   NPM_VERSION = "9"
 
 [[redirects]]
-  from = "/api/chat"
-  to = "/.netlify/functions/api/chat"
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
   status = 200
-
-[[redirects]]
-  from = "/api/transcript-stats"
-  to = "/.netlify/functions/api/transcript-stats"
-  status = 200
-
-[[redirects]]
-  from = "/api/process-course"
-  to = "/.netlify/functions/api/process-course"
-  status = 200
-
-[[redirects]]
-  from = "/api/generate-flashcards"
-  to = "/.netlify/functions/api/generate-flashcards"
-  status = 200
-
-[[redirects]]
-  from = "/api/generate-quiz"
-  to = "/.netlify/functions/api/generate-quiz"
-  status = 200
-
-[[redirects]]
-  from = "/api/find-external-resources"
-  to = "/.netlify/functions/api/find-external-resources"
-  status = 200
+  force = false
 
 [[headers]]
   for = "/*"
