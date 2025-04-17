@@ -17,7 +17,7 @@
   for = "/*"
   [headers.values]
     X-Frame-Options = "SAMEORIGIN"
-    Content-Security-Policy = "default-src 'self'; frame-ancestors 'self' https://*.netlify.app https://*.instructure.com https://*.canvas.net https://*.canvaslms.com https://dev-learninglibrary.com"
+    Content-Security-Policy = "default-src 'self'; connect-src 'self' https://*.netlify.app https://*.netlify.com; frame-ancestors 'self' https://*.netlify.app https://*.instructure.com https://*.canvas.net https://*.canvaslms.com https://dev-learninglibrary.com"
     Access-Control-Allow-Origin = "https://*.netlify.app"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
