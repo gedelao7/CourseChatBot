@@ -8,9 +8,10 @@
   NPM_VERSION = "9"
 
 [[redirects]]
-  from = "/api/*"
+  from = "/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
+  force = true
 
 [[headers]]
   for = "/*"
