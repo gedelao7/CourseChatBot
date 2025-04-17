@@ -24,13 +24,11 @@ app.use(cors({
     
     // List of allowed origins for iframe embedding
     const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5000',
+      'https://chatbot75.netlify.app',
       'https://*.instructure.com',
       'https://*.canvas.net',
       'https://*.canvaslms.com',
-      'https://dev-learninglibrary.com',
-      'http://localhost:5173'  // Add Vite's default port
+      'https://dev-learninglibrary.com'
     ];
     
     // Check if the origin is allowed
@@ -59,8 +57,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Add security headers for iframe embedding
 app.use((req, res, next) => {
-  res.setHeader('X-Frame-Options', 'ALLOW-FROM http://localhost:5173');
-  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' http://localhost:5173");
+  res.setHeader('X-Frame-Options', 'ALLOW-FROM https://chatbot75.netlify.app');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://chatbot75.netlify.app");
   next();
 });
 
