@@ -61,8 +61,8 @@ if (process.env.ALGOLIA_APP_ID && process.env.ALGOLIA_API_KEY) {
   );
 }
 
-// Mount API routes
-app.use('/api', require('../routes/api'));
+// Mount API routes without the /api prefix since it's already in the Netlify function path
+app.use('/', require('../routes/api'));
 
 // Export the serverless handler
 module.exports.handler = serverless(app); 
