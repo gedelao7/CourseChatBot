@@ -1,0 +1,13 @@
+[build]
+  command = "cd frontend && npm install && npm run build"
+  publish = "frontend/dist"
+  functions = "backend/functions"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[build.environment]
+  NODE_VERSION = "18"
+  NPM_VERSION = "9" 
