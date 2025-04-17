@@ -24,6 +24,7 @@ app.use(cors({
     
     // List of allowed origins for iframe embedding
     const allowedOrigins = [
+      'http://localhost:3000',
       'https://chatbot75.netlify.app',
       'https://*.instructure.com',
       'https://*.canvas.net',
@@ -57,10 +58,23 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Security headers
 app.use((req, res, next) => {
-  res.setHeader('X-Frame-Options', 'ALLOW-FROM https://chatbot75.netlify.app');
-  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://chatbot75.netlify.app https://*.instructure.com https://*.canvas.net https://*.canvaslms.com https://dev-learninglibrary.com");
-  res.setHeader('Access-Control-Allow-Origin', 'https://chatbot75.netlify.app');
+  const origin = req.headers.origin;
+  if (origin && origin.includes('localhost:3000')) {
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://chatbot75.netlify.app');
+  }
+  
   res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Only set these headers if not in development
+  if (process.env.NODE_ENV !== 'development') {
+    res.setHeader('X-Frame-Options', 'ALLOW-FROM https://chatbot75.netlify.app');
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://chatbot75.netlify.app https://*.instructure.com https://*.canvas.net https://*.canvaslms.com https://dev-learninglibrary.com");
+  }
+  
   next();
 });
 
