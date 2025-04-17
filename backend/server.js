@@ -45,20 +45,22 @@ app.use(cors({
       callback(null, true);
     } else {
       console.log(`Origin ${origin} not allowed by CORS`);
-      callback(null, true); // Still allow in development, but log it
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Add security headers for iframe embedding
+// Security headers
 app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'ALLOW-FROM https://chatbot75.netlify.app');
-  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://chatbot75.netlify.app");
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'self' https://chatbot75.netlify.app https://*.instructure.com https://*.canvas.net https://*.canvaslms.com https://dev-learninglibrary.com");
+  res.setHeader('Access-Control-Allow-Origin', 'https://chatbot75.netlify.app');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   next();
 });
 
